@@ -91,9 +91,12 @@ def get_database():
 
 def get_db_stats():
     """Get database statistics."""
-    db = get_database()
-    if db:
-        return db.get_stats()
+    try:
+        db = get_database()
+        if db:
+            return db.get_stats()
+    except Exception as e:
+        print(f"Database stats error: {e}")
     return {"total_trials": 566622, "status": "cached"}
 
 
