@@ -230,26 +230,58 @@ async def semantic_match_trials(protocol_info: Dict, trials: List[Dict], top_n: 
 
 
 # ============== CLINICALTRIALS.GOV API ==============
+def simplify_condition_query(condition: str) -> str:
+    """Simplify condition string for better API search results."""
+    # Remove common prefixes and parenthetical content
+    import re
+
+    simplified = condition
+
+    # Remove parenthetical abbreviations like (NSCLC), (TNBC), etc.
+    simplified = re.sub(r'\s*\([^)]*\)\s*', ' ', simplified)
+
+    # Remove common prefixes
+    prefixes_to_remove = [
+        'advanced', 'metastatic', 'recurrent', 'refractory',
+        'relapsed', 'newly diagnosed', 'previously treated',
+        'treatment-naive', 'stage iv', 'stage iii', 'stage ii'
+    ]
+    for prefix in prefixes_to_remove:
+        simplified = re.sub(rf'\b{prefix}\b', '', simplified, flags=re.IGNORECASE)
+
+    # Clean up whitespace
+    simplified = ' '.join(simplified.split())
+
+    # If result is too short, use original but simplified
+    if len(simplified) < 5:
+        simplified = condition.split('(')[0].strip()
+
+    return simplified.strip()
+
+
 async def search_clinicaltrials_api(condition: str, intervention: str = None, phase: str = None, max_results: int = 50) -> List[Dict]:
     """Search ClinicalTrials.gov API directly."""
     base_url = "https://clinicaltrials.gov/api/v2/studies"
 
-    # Build query
-    query_parts = []
-    if condition:
-        query_parts.append(f"AREA[Condition]{condition}")
-    if intervention:
-        query_parts.append(f"AREA[Intervention]{intervention}")
+    # Simplify condition for better search results
+    search_condition = simplify_condition_query(condition) if condition else ""
+    print(f"Original condition: {condition}")
+    print(f"Simplified search: {search_condition}")
 
     params = {
-        "query.cond": condition,
+        "query.cond": search_condition,
         "pageSize": min(max_results, 100),
         "format": "json",
         "fields": "NCTId,BriefTitle,OverallStatus,Phase,EnrollmentCount,Condition,InterventionName,EligibilityCriteria,PrimaryOutcome,StartDate,CompletionDate,LeadSponsorName,StudyType"
     }
 
     if phase:
-        params["query.phase"] = phase
+        # Simplify phase format
+        phase_map = {
+            "Phase 1": "PHASE1", "Phase 2": "PHASE2", "Phase 3": "PHASE3", "Phase 4": "PHASE4",
+            "Phase I": "PHASE1", "Phase II": "PHASE2", "Phase III": "PHASE3", "Phase IV": "PHASE4"
+        }
+        params["filter.phase"] = phase_map.get(phase, phase)
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
