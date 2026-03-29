@@ -101,6 +101,77 @@ def get_db_stats():
     return {"total_trials": 566622, "status": "cached"}
 
 
+async def search_trials_from_database(condition: str, intervention: str = None, phase: str = None, max_results: int = 100) -> List[Dict]:
+    """
+    Search trials from PostgreSQL database.
+    This is the primary search method when database is available.
+    """
+    try:
+        db = get_database()
+        if not db:
+            print("Database not available, falling back to API")
+            return []
+
+        from sqlalchemy import text
+
+        # Build search query with ILIKE for case-insensitive matching
+        query_parts = ["SELECT * FROM trials WHERE 1=1"]
+        params = {}
+
+        if condition:
+            # Search in conditions and title fields
+            query_parts.append("AND (conditions ILIKE :condition OR title ILIKE :condition)")
+            params["condition"] = f"%{condition}%"
+
+        if intervention:
+            query_parts.append("AND interventions ILIKE :intervention")
+            params["intervention"] = f"%{intervention}%"
+
+        if phase:
+            # Normalize phase format
+            phase_normalized = phase.replace("Phase ", "PHASE").replace(" ", "")
+            query_parts.append("AND phase ILIKE :phase")
+            params["phase"] = f"%{phase_normalized}%"
+
+        # Prioritize recruiting studies
+        query_parts.append("ORDER BY CASE WHEN status = 'RECRUITING' THEN 0 ELSE 1 END, nct_id DESC")
+        query_parts.append(f"LIMIT {max_results}")
+
+        query = " ".join(query_parts)
+        print(f"Database query: {query[:200]}...")
+        print(f"Params: {params}")
+
+        with db.session() as session:
+            result = session.execute(text(query), params)
+            rows = result.fetchall()
+
+            trials = []
+            for row in rows:
+                trials.append({
+                    "nct_id": row.nct_id,
+                    "title": row.title,
+                    "status": row.status,
+                    "phase": row.phase,
+                    "enrollment": row.enrollment,
+                    "conditions": row.conditions,
+                    "interventions": row.interventions,
+                    "eligibility_criteria": row.eligibility_criteria,
+                    "primary_outcomes": row.primary_outcomes,
+                    "sponsor": row.sponsor,
+                    "start_date": row.start_date,
+                    "completion_date": row.completion_date,
+                })
+
+            print(f"Found {len(trials)} trials from database")
+            return trials
+
+    except Exception as e:
+        print(f"Database search error: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 # ============== OPENAI EMBEDDINGS FOR SEMANTIC MATCHING ==============
 def get_openai_embedding(text: str) -> List[float]:
     """Generate embedding using OpenAI text-embedding-3-small."""
@@ -561,18 +632,31 @@ async def analyze_protocol(input_data: ProtocolInput):
         extracted_dict = await extract_protocol_with_claude(input_data.protocol_text)
         print(f"Extracted: {extracted_dict.get('condition')}, {extracted_dict.get('intervention_name')}")
 
-        # Step 2: Search ClinicalTrials.gov for candidate trials
+        # Step 2: Search for candidate trials (database first, API fallback)
         condition = extracted_dict.get("condition", "")
         intervention = extracted_dict.get("intervention_name", "")
         phase = extracted_dict.get("phase", "")
 
-        print(f"Step 2: Searching ClinicalTrials.gov for {condition}...")
-        candidate_trials = await search_clinicaltrials_api(
-            condition=condition,
+        print(f"Step 2: Searching for trials matching {condition}...")
+
+        # Try database first
+        candidate_trials = await search_trials_from_database(
+            condition=simplify_condition_query(condition) if condition else "",
             intervention=intervention,
             phase=phase,
-            max_results=100  # Get more candidates for semantic filtering
+            max_results=100
         )
+
+        # Fallback to ClinicalTrials.gov API if database returns no results
+        if not candidate_trials:
+            print("Database returned no results, trying ClinicalTrials.gov API...")
+            candidate_trials = await search_clinicaltrials_api(
+                condition=condition,
+                intervention=intervention,
+                phase=phase,
+                max_results=100
+            )
+
         print(f"Found {len(candidate_trials)} candidate trials")
 
         # Step 3: Use OpenAI embeddings to semantically match and rank trials
@@ -636,19 +720,32 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
         print(f"Extracted intervention: {extracted_dict.get('intervention_name')}")
         print(f"Extracted phase: {extracted_dict.get('phase')}")
 
-        # Step 2: Search ClinicalTrials.gov for candidate trials (get more for filtering)
+        # Step 2: Search for candidate trials (database first, API fallback)
         condition = extracted_dict.get("condition", "")
         intervention = extracted_dict.get("intervention_name", "")
         phase = extracted_dict.get("phase", "")
 
-        print(f"Step 2: Searching ClinicalTrials.gov for '{condition}'...")
-        candidate_trials = await search_clinicaltrials_api(
-            condition=condition,
+        print(f"Step 2: Searching for '{condition}'...")
+
+        # Try database first
+        candidate_trials = await search_trials_from_database(
+            condition=simplify_condition_query(condition) if condition else "",
             intervention=intervention,
             phase=phase,
-            max_results=100  # Get more candidates for semantic filtering
+            max_results=100
         )
-        print(f"Found {len(candidate_trials)} candidate trials from API")
+
+        # Fallback to ClinicalTrials.gov API if database returns no results
+        if not candidate_trials:
+            print("Database returned no results, trying ClinicalTrials.gov API...")
+            candidate_trials = await search_clinicaltrials_api(
+                condition=condition,
+                intervention=intervention,
+                phase=phase,
+                max_results=100
+            )
+
+        print(f"Found {len(candidate_trials)} candidate trials")
 
         # Step 3: Use OpenAI embeddings to semantically match and rank trials
         print("Step 3: Semantic matching with OpenAI embeddings...")
