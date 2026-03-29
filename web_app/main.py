@@ -101,6 +101,134 @@ def get_db_stats():
     return {"total_trials": 566622, "status": "cached"}
 
 
+# ============== OPENAI EMBEDDINGS FOR SEMANTIC MATCHING ==============
+def get_openai_embedding(text: str) -> List[float]:
+    """Generate embedding using OpenAI text-embedding-3-small."""
+    from openai import OpenAI
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY not set")
+
+    client = OpenAI(api_key=api_key)
+    text = text[:8000]  # Truncate to avoid token limits
+
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+    )
+    return response.data[0].embedding
+
+
+def get_openai_embeddings_batch(texts: List[str]) -> List[List[float]]:
+    """Generate embeddings for multiple texts."""
+    from openai import OpenAI
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY not set")
+
+    client = OpenAI(api_key=api_key)
+    texts = [t[:8000] for t in texts]  # Truncate each
+
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=texts
+    )
+    return [item.embedding for item in response.data]
+
+
+def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    """Calculate cosine similarity between two vectors."""
+    import numpy as np
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    return float(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
+
+
+def create_protocol_embedding_text(protocol_info: Dict) -> str:
+    """Create text representation of protocol for embedding."""
+    parts = []
+    if protocol_info.get("condition"):
+        parts.append(f"Condition: {protocol_info['condition']}")
+    if protocol_info.get("therapeutic_area"):
+        parts.append(f"Therapeutic Area: {protocol_info['therapeutic_area']}")
+    if protocol_info.get("intervention_name"):
+        parts.append(f"Intervention: {protocol_info['intervention_name']}")
+    if protocol_info.get("intervention_type"):
+        parts.append(f"Intervention Type: {protocol_info['intervention_type']}")
+    if protocol_info.get("primary_endpoint"):
+        parts.append(f"Primary Endpoint: {protocol_info['primary_endpoint']}")
+    if protocol_info.get("phase"):
+        parts.append(f"Phase: {protocol_info['phase']}")
+    if protocol_info.get("inclusion_criteria"):
+        criteria = protocol_info['inclusion_criteria']
+        if isinstance(criteria, list):
+            criteria = "; ".join(criteria[:5])
+        parts.append(f"Inclusion: {criteria[:500]}")
+    if protocol_info.get("exclusion_criteria"):
+        criteria = protocol_info['exclusion_criteria']
+        if isinstance(criteria, list):
+            criteria = "; ".join(criteria[:5])
+        parts.append(f"Exclusion: {criteria[:500]}")
+    return " | ".join(parts)
+
+
+def create_trial_embedding_text(trial: Dict) -> str:
+    """Create text representation of trial for embedding."""
+    parts = []
+    if trial.get("title"):
+        parts.append(f"Title: {trial['title']}")
+    if trial.get("conditions"):
+        parts.append(f"Conditions: {trial['conditions']}")
+    if trial.get("interventions"):
+        parts.append(f"Interventions: {trial['interventions']}")
+    if trial.get("primary_outcomes"):
+        parts.append(f"Outcomes: {trial['primary_outcomes'][:300]}")
+    if trial.get("phase"):
+        parts.append(f"Phase: {trial['phase']}")
+    if trial.get("eligibility_criteria"):
+        parts.append(f"Eligibility: {trial['eligibility_criteria'][:300]}")
+    return " | ".join(parts)
+
+
+async def semantic_match_trials(protocol_info: Dict, trials: List[Dict], top_n: int = 30) -> List[Dict]:
+    """
+    Use OpenAI embeddings to semantically match and rank trials against the protocol.
+    """
+    if not trials:
+        return []
+
+    try:
+        # Create protocol embedding text
+        protocol_text = create_protocol_embedding_text(protocol_info)
+
+        # Create trial embedding texts
+        trial_texts = [create_trial_embedding_text(t) for t in trials]
+
+        # Get embeddings
+        all_texts = [protocol_text] + trial_texts
+        embeddings = get_openai_embeddings_batch(all_texts)
+
+        protocol_embedding = embeddings[0]
+        trial_embeddings = embeddings[1:]
+
+        # Calculate similarity scores
+        for i, trial in enumerate(trials):
+            similarity = cosine_similarity(protocol_embedding, trial_embeddings[i])
+            trial["semantic_score"] = round(similarity * 100, 1)
+
+        # Sort by semantic score
+        trials.sort(key=lambda x: x.get("semantic_score", 0), reverse=True)
+
+        return trials[:top_n]
+
+    except Exception as e:
+        print(f"Semantic matching error: {e}")
+        # Return original trials if embedding fails
+        return trials[:top_n]
+
+
 # ============== CLINICALTRIALS.GOV API ==============
 async def search_clinicaltrials_api(condition: str, intervention: str = None, phase: str = None, max_results: int = 50) -> List[Dict]:
     """Search ClinicalTrials.gov API directly."""
@@ -386,7 +514,7 @@ async def find_trials(request: Request):
 # ============== API ENDPOINTS ==============
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_protocol(input_data: ProtocolInput):
-    """Analyze a protocol and return comprehensive intelligence using ClinicalTrials.gov API."""
+    """Analyze a protocol using OpenAI embeddings for semantic matching and Claude for analysis."""
 
     if not input_data.protocol_text or len(input_data.protocol_text.strip()) < 100:
         raise HTTPException(status_code=400, detail="Protocol text must be at least 100 characters")
@@ -394,23 +522,40 @@ async def analyze_protocol(input_data: ProtocolInput):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured for semantic matching")
+
     try:
         # Step 1: Extract protocol information using Claude
+        print("Step 1: Extracting protocol with Claude...")
         extracted_dict = await extract_protocol_with_claude(input_data.protocol_text)
+        print(f"Extracted: {extracted_dict.get('condition')}, {extracted_dict.get('intervention_name')}")
 
-        # Step 2: Search ClinicalTrials.gov for similar trials
+        # Step 2: Search ClinicalTrials.gov for candidate trials
         condition = extracted_dict.get("condition", "")
         intervention = extracted_dict.get("intervention_name", "")
         phase = extracted_dict.get("phase", "")
 
-        similar_trials = await search_clinicaltrials_api(
+        print(f"Step 2: Searching ClinicalTrials.gov for {condition}...")
+        candidate_trials = await search_clinicaltrials_api(
             condition=condition,
             intervention=intervention,
             phase=phase,
-            max_results=input_data.max_similar
+            max_results=100  # Get more candidates for semantic filtering
         )
+        print(f"Found {len(candidate_trials)} candidate trials")
 
-        # Step 3: Analyze similar trials with Claude
+        # Step 3: Use OpenAI embeddings to semantically match and rank trials
+        print("Step 3: Semantic matching with OpenAI embeddings...")
+        similar_trials = await semantic_match_trials(
+            protocol_info=extracted_dict,
+            trials=candidate_trials,
+            top_n=input_data.max_similar
+        )
+        print(f"Top match score: {similar_trials[0].get('semantic_score') if similar_trials else 'N/A'}")
+
+        # Step 4: Use Claude for comprehensive analysis
+        print("Step 4: Analyzing with Claude...")
         analysis = await analyze_similar_trials_with_claude(extracted_dict, similar_trials)
 
         return AnalysisResponse(
@@ -419,7 +564,7 @@ async def analyze_protocol(input_data: ProtocolInput):
             risk_assessment=analysis.get("risk_assessment", {}),
             similar_trials=similar_trials[:20],
             metrics=analysis.get("benchmarks", {}),
-            site_recommendations=analysis.get("recommendations", [])
+            site_recommendations=analysis.get("recommendations", {}).get("critical_considerations", [])
         )
 
     except Exception as e:
@@ -442,7 +587,7 @@ class ProtocolInputV2(BaseModel):
 @app.post("/api/analyze-v2")
 async def analyze_protocol_v2(input_data: ProtocolInputV2):
     """
-    Analyze protocol using ClinicalTrials.gov API with Claude intelligence.
+    Analyze protocol using OpenAI embeddings for semantic matching and Claude for comprehensive analysis.
     """
     if not input_data.protocol_text or len(input_data.protocol_text.strip()) < 100:
         raise HTTPException(status_code=400, detail="Protocol text must be at least 100 characters")
@@ -450,24 +595,51 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured for semantic matching")
+
     try:
         # Step 1: Extract protocol information using Claude
+        print("Step 1: Extracting protocol structure with Claude...")
         extracted_dict = await extract_protocol_with_claude(input_data.protocol_text)
+        print(f"Extracted condition: {extracted_dict.get('condition')}")
+        print(f"Extracted intervention: {extracted_dict.get('intervention_name')}")
+        print(f"Extracted phase: {extracted_dict.get('phase')}")
 
-        # Step 2: Search ClinicalTrials.gov for similar trials
+        # Step 2: Search ClinicalTrials.gov for candidate trials (get more for filtering)
         condition = extracted_dict.get("condition", "")
         intervention = extracted_dict.get("intervention_name", "")
         phase = extracted_dict.get("phase", "")
 
-        similar_trials = await search_clinicaltrials_api(
+        print(f"Step 2: Searching ClinicalTrials.gov for '{condition}'...")
+        candidate_trials = await search_clinicaltrials_api(
             condition=condition,
             intervention=intervention,
             phase=phase,
-            max_results=input_data.max_results
+            max_results=100  # Get more candidates for semantic filtering
         )
+        print(f"Found {len(candidate_trials)} candidate trials from API")
 
-        # Step 3: Analyze similar trials with Claude
+        # Step 3: Use OpenAI embeddings to semantically match and rank trials
+        print("Step 3: Semantic matching with OpenAI embeddings...")
+        if input_data.use_reranking and candidate_trials:
+            similar_trials = await semantic_match_trials(
+                protocol_info=extracted_dict,
+                trials=candidate_trials,
+                top_n=input_data.max_results
+            )
+            # Filter by minimum score
+            similar_trials = [t for t in similar_trials if t.get("semantic_score", 0) >= input_data.min_score]
+            print(f"After semantic matching: {len(similar_trials)} trials (min score: {input_data.min_score})")
+            if similar_trials:
+                print(f"Top semantic score: {similar_trials[0].get('semantic_score')}")
+        else:
+            similar_trials = candidate_trials[:input_data.max_results]
+
+        # Step 4: Use Claude for comprehensive analysis
+        print("Step 4: Generating comprehensive analysis with Claude...")
         analysis = await analyze_similar_trials_with_claude(extracted_dict, similar_trials)
+        print("Analysis complete")
 
         # Extract analysis components
         risk = analysis.get("risk_assessment", {})
