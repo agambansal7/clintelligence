@@ -2,29 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "web_app/main.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "web_app/static/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "web_app/templates/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "web_app/static/$1"
-    },
-    {
       "src": "/(.*)",
-      "dest": "web_app/main.py"
+      "dest": "api/index.py"
     }
-  ],
-  "env": {
-    "PYTHONPATH": "."
-  }
+  ]
 }
