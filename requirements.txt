@@ -44,3 +44,6 @@ pdfplumber>=0.10.0
 # Web Templates
 jinja2>=3.1.0
 python-multipart>=0.0.6
+
+# Serverless
+mangum>=0.17.0
