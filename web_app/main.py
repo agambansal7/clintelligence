@@ -648,78 +648,113 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
         success = analysis.get("success_prediction", {})
         enrollment = analysis.get("enrollment_forecast", {})
         competition = analysis.get("competitive_landscape", {})
-        recommendations = analysis.get("recommendations", {})
+        recommendations_data = analysis.get("recommendations", {})
         insights = analysis.get("similar_trial_insights", {})
 
-        # Build comprehensive dashboard data
+        # Count trial statuses
+        completed_count = len([t for t in similar_trials if t.get("status") == "COMPLETED"])
+        recruiting_count = len([t for t in similar_trials if t.get("status") in ["RECRUITING", "ACTIVE_NOT_RECRUITING"]])
+        terminated_count = len([t for t in similar_trials if t.get("status") in ["TERMINATED", "WITHDRAWN"]])
+
+        # Build recommendations in the format frontend expects (array with priority)
+        formatted_recommendations = []
+        for item in recommendations_data.get("critical_considerations", []):
+            formatted_recommendations.append({"priority": "high", "recommendation": item, "rationale": "Critical consideration based on similar trials"})
+        for item in recommendations_data.get("protocol_weaknesses", []):
+            formatted_recommendations.append({"priority": "medium", "recommendation": item, "rationale": "Area for improvement"})
+
+        # Build strengths in the format frontend expects
+        formatted_strengths = [{"strength": s, "impact": "positive"} for s in recommendations_data.get("protocol_strengths", [])]
+
+        # Build comprehensive dashboard data matching frontend structure
         dashboard_data = {
+            # Risk Analysis - frontend expects overall_score (not overall_risk_score)
             "risk_analysis": {
-                "overall_risk_score": risk.get("overall_risk_score", 50),
+                "overall_score": risk.get("overall_risk_score", 50),
                 "overall_risk_level": risk.get("overall_risk_level", "MEDIUM"),
                 "overall_risk_rationale": risk.get("overall_risk_rationale", ""),
-                "enrollment_risk": {
-                    "score": risk.get("enrollment_risk_score", 50),
-                    "rationale": risk.get("enrollment_risk_rationale", "")
+                "competitive_landscape": {
+                    "competing_count": recruiting_count,
+                    "risk_level": competition.get("competition_level", "medium").lower()
                 },
-                "timeline_risk": {
-                    "score": risk.get("timeline_risk_score", 50),
-                    "rationale": risk.get("timeline_risk_rationale", "")
-                },
-                "endpoint_risk": {
-                    "score": risk.get("endpoint_risk_score", 50),
-                    "rationale": risk.get("endpoint_risk_rationale", "")
-                },
-                "competition_risk": {
-                    "score": risk.get("competition_risk_score", 50),
-                    "rationale": risk.get("competition_risk_rationale", "")
-                }
+                "enrollment_risk": {"score": risk.get("enrollment_risk_score", 50)},
+                "timeline_risk": {"score": risk.get("timeline_risk_score", 50)},
+                "endpoint_risk": {"score": risk.get("endpoint_risk_score", 50)}
             },
-            "amendment_prediction": {
-                "probability": amendment.get("amendment_probability", 50),
-                "predicted_count": amendment.get("predicted_amendments", 2),
+
+            # Amendment Intelligence - frontend expects this structure
+            "amendment_intelligence": {
+                "overall_risk_score": amendment.get("amendment_probability", 50),
+                "predicted_amendments": amendment.get("predicted_amendments", 2.0),
                 "common_reasons": amendment.get("common_amendment_reasons", [])
             },
-            "protocol_complexity": {
-                "score": complexity.get("complexity_score", 50),
-                "factors": complexity.get("complexity_factors", []),
-                "simplification_opportunities": complexity.get("simplification_opportunities", [])
+
+            # Protocol Optimization - frontend expects complexity_score.score, success_rate, recommendations array
+            "protocol_optimization": {
+                "complexity_score": {
+                    "score": complexity.get("complexity_score", 50),
+                    "comparison": "out of 100"
+                },
+                "success_rate": success.get("predicted_success_rate", 65),
+                "trials_analyzed": len(similar_trials),
+                "recommendations": formatted_recommendations,
+                "strengths": formatted_strengths,
+                "amendment_risk": {
+                    "probability": amendment.get("amendment_probability", 50),
+                    "drivers": [{"factor": r, "impact": "medium"} for r in amendment.get("common_amendment_reasons", [])[:5]]
+                },
+                "terminated_trials": [{"nct_id": t.get("nct_id"), "title": t.get("title"), "reason": "See ClinicalTrials.gov"}
+                                     for t in similar_trials if t.get("status") in ["TERMINATED", "WITHDRAWN"]][:5],
+                "design_comparison": []
             },
-            "success_prediction": {
-                "rate": success.get("predicted_success_rate", 65),
-                "success_factors": success.get("success_factors", []),
-                "risk_factors": success.get("risk_factors", []),
-                "comparison": success.get("comparison_to_similar", "")
-            },
+
+            # Enrollment Forecast - frontend expects target_enrollment, scenarios array, historical_benchmark
             "enrollment_forecast": {
-                "target": extracted_dict.get("target_enrollment") or enrollment.get("recommended_sites", 20) * enrollment.get("patients_per_site", 10),
-                "estimated_duration_months": enrollment.get("estimated_duration_months", 24),
-                "duration_range": f"{enrollment.get('duration_range_low', 18)}-{enrollment.get('duration_range_high', 30)} months",
-                "enrollment_rate": enrollment.get("enrollment_rate_per_site_month", 1.5),
-                "recommended_sites": enrollment.get("recommended_sites", 30),
-                "recommended_countries": enrollment.get("recommended_countries", 8),
-                "patients_per_site": enrollment.get("patients_per_site", 12)
+                "target_enrollment": extracted_dict.get("target_enrollment") or 120,
+                "scenarios": [
+                    {"name": "base", "months": enrollment.get("estimated_duration_months", 24)},
+                    {"name": "optimistic", "months": enrollment.get("duration_range_low", 18)},
+                    {"name": "conservative", "months": enrollment.get("duration_range_high", 30)}
+                ],
+                "historical_benchmark": {
+                    "range": f"{enrollment.get('duration_range_low', 18)}-{enrollment.get('duration_range_high', 28)}"
+                }
             },
+
+            # Site Intelligence - frontend expects strategy with recommended_sites, etc.
+            "site_intelligence": {
+                "strategy": {
+                    "recommended_sites": enrollment.get("recommended_sites", 50),
+                    "recommended_countries": enrollment.get("recommended_countries", 12),
+                    "pts_per_site_target": enrollment.get("patients_per_site", 15)
+                },
+                "top_sites": []
+            },
+
+            # Competitive Landscape - frontend expects top_sponsors array
             "competitive_landscape": {
                 "total_similar_trials": len(similar_trials),
-                "completed": insights.get("completed_trials", 0),
-                "recruiting": competition.get("active_competitors", 0),
-                "terminated": insights.get("terminated_early", 0),
+                "completed": completed_count,
+                "recruiting": recruiting_count,
+                "terminated": terminated_count,
                 "competition_level": competition.get("competition_level", "MEDIUM"),
-                "key_competitors": competition.get("key_competitors", []),
-                "differentiation": competition.get("differentiation_opportunities", [])
+                "top_sponsors": [{"name": s, "trial_count": 1} for s in competition.get("key_competitors", [])[:6]]
             },
-            "recommendations": {
-                "strengths": recommendations.get("protocol_strengths", []),
-                "weaknesses": recommendations.get("protocol_weaknesses", []),
-                "critical_considerations": recommendations.get("critical_considerations", []),
-                "site_selection": recommendations.get("site_selection_guidance", ""),
-                "enrollment_strategy": recommendations.get("enrollment_strategy", "")
+
+            # Similar trials enhanced
+            "similar_trials_enhanced": {
+                "detected_therapeutic_area": extracted_dict.get("therapeutic_area", "General"),
+                "total_matched": len(similar_trials),
+                "showing": len(similar_trials),
+                "trials": similar_trials
             },
-            "similar_trial_insights": {
-                "total_analyzed": insights.get("total_analyzed", len(similar_trials)),
-                "average_enrollment": insights.get("average_enrollment", 0),
-                "average_duration": insights.get("average_duration_months", 0),
-                "key_learnings": insights.get("key_learnings", [])
+
+            # Eligibility analysis
+            "eligibility_analysis": {
+                "screen_failure_prediction": {
+                    "assessment": "moderate",
+                    "rate": 25
+                }
             }
         }
 
