@@ -1,6 +1,25 @@
-# Minimal requirements for Vercel deployment
+# Core Dependencies
+requests>=2.31.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# API Framework
 fastapi>=0.100.0
+uvicorn>=0.23.0
 pydantic>=2.0.0
+
+# AI Assistant
+anthropic>=0.39.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Web Templates
 jinja2>=3.1.0
-mangum>=0.17.0
 python-multipart>=0.0.6
