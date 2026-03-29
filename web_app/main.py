@@ -218,53 +218,100 @@ Return ONLY valid JSON, no other text."""
 
 
 async def analyze_similar_trials_with_claude(protocol_info: Dict, similar_trials: List[Dict]) -> Dict:
-    """Use Claude to analyze similar trials and provide insights."""
+    """Use Claude to analyze similar trials and provide comprehensive dashboard insights."""
     import anthropic
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     trials_summary = json.dumps(similar_trials[:20], indent=2)
+    target_enrollment = protocol_info.get('target_enrollment') or 100
 
-    prompt = f"""You are a clinical trial intelligence analyst. Analyze the following similar trials compared to a new protocol.
+    prompt = f"""You are an expert clinical trial intelligence analyst. Analyze the following protocol against similar historical trials and provide comprehensive risk assessment and recommendations.
 
-New Protocol:
+NEW PROTOCOL DETAILS:
 - Condition: {protocol_info.get('condition', 'Unknown')}
+- Therapeutic Area: {protocol_info.get('therapeutic_area', 'Unknown')}
 - Phase: {protocol_info.get('phase', 'Unknown')}
-- Intervention: {protocol_info.get('intervention_name', 'Unknown')}
+- Intervention Type: {protocol_info.get('intervention_type', 'Unknown')}
+- Intervention Name: {protocol_info.get('intervention_name', 'Unknown')}
 - Primary Endpoint: {protocol_info.get('primary_endpoint', 'Unknown')}
-- Target Enrollment: {protocol_info.get('target_enrollment', 'Unknown')}
+- Secondary Endpoints: {protocol_info.get('secondary_endpoints', [])}
+- Target Enrollment: {target_enrollment}
+- Study Duration: {protocol_info.get('study_duration_months', 'Unknown')} months
+- Comparator: {protocol_info.get('comparator', 'Unknown')}
+- Key Inclusion: {protocol_info.get('inclusion_criteria', [])}
+- Key Exclusion: {protocol_info.get('exclusion_criteria', [])}
 
-Similar Historical Trials:
+SIMILAR HISTORICAL TRIALS ({len(similar_trials)} found):
 {trials_summary}
 
-Provide analysis in JSON format:
+Based on your expert analysis, provide a comprehensive assessment in JSON format:
+
 {{
     "risk_assessment": {{
-        "overall_risk": "low/medium/high",
-        "enrollment_risk": "assessment of enrollment challenges",
-        "timeline_risk": "assessment of timeline risks",
-        "endpoint_risk": "assessment of endpoint selection",
-        "competition_risk": "assessment of competitive landscape"
+        "overall_risk_score": <number 0-100, where 100 is highest risk>,
+        "overall_risk_level": "LOW/MEDIUM/HIGH",
+        "overall_risk_rationale": "detailed explanation of overall risk",
+        "enrollment_risk_score": <number 0-100>,
+        "enrollment_risk_rationale": "explanation of enrollment challenges",
+        "timeline_risk_score": <number 0-100>,
+        "timeline_risk_rationale": "explanation of timeline risks",
+        "endpoint_risk_score": <number 0-100>,
+        "endpoint_risk_rationale": "explanation of endpoint selection risks",
+        "competition_risk_score": <number 0-100>,
+        "competition_risk_rationale": "explanation of competitive landscape"
     }},
-    "benchmarks": {{
-        "typical_enrollment": "typical enrollment for similar trials",
-        "typical_duration": "typical duration",
-        "success_rate": "estimated success rate based on similar trials",
-        "common_amendments": ["common protocol amendments seen"]
+    "amendment_prediction": {{
+        "amendment_probability": <number 0-100, percentage chance of amendments>,
+        "predicted_amendments": <number, expected number of amendments>,
+        "common_amendment_reasons": ["list of likely amendment reasons based on similar trials"]
     }},
-    "recommendations": [
-        "recommendation 1",
-        "recommendation 2",
-        "recommendation 3"
-    ],
+    "protocol_complexity": {{
+        "complexity_score": <number 0-100>,
+        "complexity_factors": ["list of factors contributing to complexity"],
+        "simplification_opportunities": ["potential ways to simplify"]
+    }},
+    "success_prediction": {{
+        "predicted_success_rate": <number 0-100, percentage>,
+        "success_factors": ["positive factors"],
+        "risk_factors": ["negative factors"],
+        "comparison_to_similar": "how this compares to similar trials"
+    }},
+    "enrollment_forecast": {{
+        "estimated_duration_months": <number>,
+        "duration_range_low": <number>,
+        "duration_range_high": <number>,
+        "enrollment_rate_per_site_month": <number>,
+        "recommended_sites": <number>,
+        "recommended_countries": <number>,
+        "patients_per_site": <number>
+    }},
+    "competitive_landscape": {{
+        "competition_level": "LOW/MEDIUM/HIGH",
+        "active_competitors": <number of recruiting similar trials>,
+        "key_competitors": ["list of major competing sponsors/trials"],
+        "differentiation_opportunities": ["how to differentiate from competition"]
+    }},
+    "recommendations": {{
+        "protocol_strengths": ["list of 3-5 protocol strengths"],
+        "protocol_weaknesses": ["list of 3-5 areas needing improvement"],
+        "critical_considerations": ["list of 3-5 critical items to address"],
+        "site_selection_guidance": "guidance on site selection strategy",
+        "enrollment_strategy": "recommended enrollment approach"
+    }},
     "similar_trial_insights": {{
-        "completed_trials": number,
-        "ongoing_trials": number,
-        "key_competitors": ["list of key competing trials/sponsors"]
+        "total_analyzed": <number>,
+        "completed_trials": <number>,
+        "ongoing_trials": <number>,
+        "terminated_early": <number>,
+        "average_enrollment": <number>,
+        "average_duration_months": <number>,
+        "key_learnings": ["insights from similar trials"]
     }}
 }}
 
-Return ONLY valid JSON."""
+Be specific and data-driven in your analysis. Use the similar trials data to inform your predictions.
+Return ONLY valid JSON, no other text."""
 
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -422,20 +469,86 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
         # Step 3: Analyze similar trials with Claude
         analysis = await analyze_similar_trials_with_claude(extracted_dict, similar_trials)
 
-        # Build dashboard data
-        completed = len([t for t in similar_trials if t.get("status") == "COMPLETED"])
-        recruiting = len([t for t in similar_trials if t.get("status") in ["RECRUITING", "ACTIVE_NOT_RECRUITING"]])
+        # Extract analysis components
+        risk = analysis.get("risk_assessment", {})
+        amendment = analysis.get("amendment_prediction", {})
+        complexity = analysis.get("protocol_complexity", {})
+        success = analysis.get("success_prediction", {})
+        enrollment = analysis.get("enrollment_forecast", {})
+        competition = analysis.get("competitive_landscape", {})
+        recommendations = analysis.get("recommendations", {})
+        insights = analysis.get("similar_trial_insights", {})
 
+        # Build comprehensive dashboard data
         dashboard_data = {
-            "risk_analysis": analysis.get("risk_assessment", {}),
-            "benchmarks": analysis.get("benchmarks", {}),
+            "risk_analysis": {
+                "overall_risk_score": risk.get("overall_risk_score", 50),
+                "overall_risk_level": risk.get("overall_risk_level", "MEDIUM"),
+                "overall_risk_rationale": risk.get("overall_risk_rationale", ""),
+                "enrollment_risk": {
+                    "score": risk.get("enrollment_risk_score", 50),
+                    "rationale": risk.get("enrollment_risk_rationale", "")
+                },
+                "timeline_risk": {
+                    "score": risk.get("timeline_risk_score", 50),
+                    "rationale": risk.get("timeline_risk_rationale", "")
+                },
+                "endpoint_risk": {
+                    "score": risk.get("endpoint_risk_score", 50),
+                    "rationale": risk.get("endpoint_risk_rationale", "")
+                },
+                "competition_risk": {
+                    "score": risk.get("competition_risk_score", 50),
+                    "rationale": risk.get("competition_risk_rationale", "")
+                }
+            },
+            "amendment_prediction": {
+                "probability": amendment.get("amendment_probability", 50),
+                "predicted_count": amendment.get("predicted_amendments", 2),
+                "common_reasons": amendment.get("common_amendment_reasons", [])
+            },
+            "protocol_complexity": {
+                "score": complexity.get("complexity_score", 50),
+                "factors": complexity.get("complexity_factors", []),
+                "simplification_opportunities": complexity.get("simplification_opportunities", [])
+            },
+            "success_prediction": {
+                "rate": success.get("predicted_success_rate", 65),
+                "success_factors": success.get("success_factors", []),
+                "risk_factors": success.get("risk_factors", []),
+                "comparison": success.get("comparison_to_similar", "")
+            },
+            "enrollment_forecast": {
+                "target": extracted_dict.get("target_enrollment") or enrollment.get("recommended_sites", 20) * enrollment.get("patients_per_site", 10),
+                "estimated_duration_months": enrollment.get("estimated_duration_months", 24),
+                "duration_range": f"{enrollment.get('duration_range_low', 18)}-{enrollment.get('duration_range_high', 30)} months",
+                "enrollment_rate": enrollment.get("enrollment_rate_per_site_month", 1.5),
+                "recommended_sites": enrollment.get("recommended_sites", 30),
+                "recommended_countries": enrollment.get("recommended_countries", 8),
+                "patients_per_site": enrollment.get("patients_per_site", 12)
+            },
             "competitive_landscape": {
                 "total_similar_trials": len(similar_trials),
-                "completed": completed,
-                "recruiting": recruiting,
-                "key_competitors": analysis.get("similar_trial_insights", {}).get("key_competitors", [])
+                "completed": insights.get("completed_trials", 0),
+                "recruiting": competition.get("active_competitors", 0),
+                "terminated": insights.get("terminated_early", 0),
+                "competition_level": competition.get("competition_level", "MEDIUM"),
+                "key_competitors": competition.get("key_competitors", []),
+                "differentiation": competition.get("differentiation_opportunities", [])
             },
-            "recommendations": analysis.get("recommendations", [])
+            "recommendations": {
+                "strengths": recommendations.get("protocol_strengths", []),
+                "weaknesses": recommendations.get("protocol_weaknesses", []),
+                "critical_considerations": recommendations.get("critical_considerations", []),
+                "site_selection": recommendations.get("site_selection_guidance", ""),
+                "enrollment_strategy": recommendations.get("enrollment_strategy", "")
+            },
+            "similar_trial_insights": {
+                "total_analyzed": insights.get("total_analyzed", len(similar_trials)),
+                "average_enrollment": insights.get("average_enrollment", 0),
+                "average_duration": insights.get("average_duration_months", 0),
+                "key_learnings": insights.get("key_learnings", [])
+            }
         }
 
         return {
@@ -448,7 +561,8 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
                 "phase": phase
             },
             "matching_version": "v2-api-based",
-            "dashboard": dashboard_data
+            "dashboard": dashboard_data,
+            "analysis": analysis  # Include raw analysis for debugging
         }
 
     except Exception as e:
