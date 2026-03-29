@@ -275,13 +275,11 @@ async def search_clinicaltrials_api(condition: str, intervention: str = None, ph
         "fields": "NCTId,BriefTitle,OverallStatus,Phase,EnrollmentCount,Condition,InterventionName,EligibilityCriteria,PrimaryOutcome,StartDate,CompletionDate,LeadSponsorName,StudyType"
     }
 
-    if phase:
-        # Simplify phase format
-        phase_map = {
-            "Phase 1": "PHASE1", "Phase 2": "PHASE2", "Phase 3": "PHASE3", "Phase 4": "PHASE4",
-            "Phase I": "PHASE1", "Phase II": "PHASE2", "Phase III": "PHASE3", "Phase IV": "PHASE4"
-        }
-        params["filter.phase"] = phase_map.get(phase, phase)
+    # Note: Removed filter.phase as it causes API issues
+    # Phase matching is handled by semantic similarity instead
+    if intervention:
+        # Add intervention to term search for better results
+        params["query.term"] = intervention
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
