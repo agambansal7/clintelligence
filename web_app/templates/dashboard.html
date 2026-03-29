@@ -1,0 +1,1564 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Dashboard{% endblock %}
+
+{% block content %}
+<div x-data="dashboardApp()" x-init="loadResults()" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- No Protocol Warning -->
+    <div x-show="!hasResults" class="text-center py-16">
+        <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+        </div>
+        <h2 class="font-display text-2xl font-bold text-navy-900 mb-2">No Protocol Analyzed</h2>
+        <p class="text-slate-500 mb-6">Enter and analyze a protocol first to see the dashboard.</p>
+        <a href="/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Analyze Protocol
+        </a>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div x-show="hasResults" x-cloak>
+        <!-- Protocol Header -->
+        <div class="bg-gradient-to-r from-navy-900 to-navy-800 rounded-3xl p-6 mb-8 text-white">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <div class="text-xs font-semibold text-primary-400 uppercase tracking-wider mb-1">Active Protocol</div>
+                    <h1 class="font-display text-2xl font-bold" x-text="results?.extracted_protocol?.condition || 'Protocol Analysis'"></h1>
+                    <p class="text-sm text-slate-400 mt-1" x-text="results?.extracted_protocol?.therapeutic_area || ''"></p>
+                    <!-- Sponsor Info -->
+                    <div x-show="results?.extracted_protocol?.sponsor" class="mt-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        <span class="text-sm text-indigo-300 font-medium" x-text="'Sponsor: ' + results?.extracted_protocol?.sponsor"></span>
+                    </div>
+                </div>
+                <div class="flex gap-6">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-primary-400" x-text="results?.extracted_protocol?.phase || 'N/A'"></div>
+                        <div class="text-xs text-slate-400">Phase</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-emerald-400" x-text="results?.extracted_protocol?.target_enrollment?.toLocaleString() || 'N/A'"></div>
+                        <div class="text-xs text-slate-400">Patients</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-400" x-text="results?.similar_trials?.length || 0"></div>
+                        <div class="text-xs text-slate-400">Similar Trials</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold"
+                            :class="{
+                                'text-emerald-400': (dashboard?.risk_analysis?.overall_score || 50) < 40,
+                                'text-amber-400': (dashboard?.risk_analysis?.overall_score || 50) >= 40 && (dashboard?.risk_analysis?.overall_score || 50) < 60,
+                                'text-red-400': (dashboard?.risk_analysis?.overall_score || 50) >= 60
+                            }"
+                            x-text="(dashboard?.risk_analysis?.overall_score || 50) + '/100'"></div>
+                        <div class="text-xs text-slate-400">Risk Score</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Module Tabs - CONSOLIDATED 4 TABS -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+            <!-- Tab Navigation -->
+            <div class="border-b border-slate-200 overflow-x-auto">
+                <nav class="flex min-w-max">
+                    <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-transparent text-slate-500 hover:text-slate-700'" class="px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                        </svg>
+                        Overview
+                    </button>
+                    <button @click="activeTab = 'landscape'" :class="activeTab === 'landscape' ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-transparent text-slate-500 hover:text-slate-700'" class="px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Competitive Landscape
+                    </button>
+                    <button @click="activeTab = 'design'" :class="activeTab === 'design' ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-transparent text-slate-500 hover:text-slate-700'" class="px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Protocol Design
+                    </button>
+                    <button @click="activeTab = 'operations'" :class="activeTab === 'operations' ? 'border-primary-500 text-primary-600 bg-primary-50' : 'border-transparent text-slate-500 hover:text-slate-700'" class="px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        Operations
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+
+                <!-- ==================== TAB 1: OVERVIEW ==================== -->
+                <div x-show="activeTab === 'overview'" x-transition>
+
+                    <!-- Key Metrics Grid -->
+                    <div class="grid md:grid-cols-4 gap-4 mb-8">
+                        <!-- Risk Score -->
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 border border-slate-200">
+                            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Overall Risk</div>
+                            <div class="text-3xl font-bold"
+                                :class="{
+                                    'text-emerald-500': (dashboard?.risk_analysis?.overall_score || 50) < 40,
+                                    'text-amber-500': (dashboard?.risk_analysis?.overall_score || 50) >= 40 && (dashboard?.risk_analysis?.overall_score || 50) < 60,
+                                    'text-red-500': (dashboard?.risk_analysis?.overall_score || 50) >= 60
+                                }"
+                                x-text="(dashboard?.risk_analysis?.overall_score || 50) + '/100'"></div>
+                            <div class="text-xs text-slate-500 mt-1">Based on similar trials analysis</div>
+                        </div>
+                        <!-- Amendment Risk -->
+                        <div class="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-5 border border-orange-200">
+                            <div class="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">Amendment Risk</div>
+                            <div class="text-3xl font-bold"
+                                :class="{
+                                    'text-red-500': (dashboard?.amendment_intelligence?.overall_risk_score || 50) >= 60,
+                                    'text-amber-500': (dashboard?.amendment_intelligence?.overall_risk_score || 50) >= 40 && (dashboard?.amendment_intelligence?.overall_risk_score || 50) < 60,
+                                    'text-emerald-500': (dashboard?.amendment_intelligence?.overall_risk_score || 50) < 40
+                                }"
+                                x-text="(dashboard?.amendment_intelligence?.overall_risk_score || dashboard?.protocol_optimization?.amendment_risk?.probability || 50) + '%'"></div>
+                            <div class="text-xs text-slate-500 mt-1">Predicted amendments: <span x-text="dashboard?.amendment_intelligence?.predicted_amendments || '2.0'"></span></div>
+                        </div>
+                        <!-- Complexity -->
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 border border-slate-200">
+                            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Protocol Complexity</div>
+                            <div class="text-3xl font-bold text-navy-900" x-text="dashboard?.protocol_optimization?.complexity_score?.score || 50"></div>
+                            <div class="text-xs text-slate-500 mt-1" x-text="dashboard?.protocol_optimization?.complexity_score?.comparison || 'out of 100'"></div>
+                        </div>
+                        <!-- Success Rate -->
+                        <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-200">
+                            <div class="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Similar Trial Success</div>
+                            <div class="text-3xl font-bold text-emerald-500" x-text="(dashboard?.protocol_optimization?.success_rate || 68) + '%'"></div>
+                            <div class="text-xs text-slate-500 mt-1">Completion rate in similar trials</div>
+                        </div>
+                    </div>
+
+                    <!-- Critical Warnings -->
+                    <div x-show="(dashboard?.protocol_optimization?.recommendations || []).filter(r => r.priority === 'high').length > 0" class="mb-8">
+                        <h3 class="font-display text-lg font-bold text-red-800 mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                            Critical Warnings
+                        </h3>
+                        <div class="space-y-3">
+                            <template x-for="rec in (dashboard?.protocol_optimization?.recommendations || []).filter(r => r.priority === 'high').slice(0, 3)" :key="rec.recommendation">
+                                <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                                    <div class="flex items-start gap-3">
+                                        <span class="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-bold">HIGH</span>
+                                        <div>
+                                            <p class="font-medium text-red-900" x-text="rec.recommendation"></p>
+                                            <p class="text-sm text-red-700 mt-1" x-text="rec.rationale"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats Grid -->
+                    <div class="grid md:grid-cols-3 gap-6 mb-8">
+                        <!-- Competitive Landscape Summary -->
+                        <div class="bg-white border border-slate-200 rounded-xl p-5">
+                            <h4 class="font-semibold text-navy-900 mb-3 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                Competitive Landscape
+                            </h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Similar Trials</span>
+                                    <span class="font-bold text-navy-900" x-text="similarTrialsData?.total_matched || results?.similar_trials?.length || 0"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Competing (Recruiting)</span>
+                                    <span class="font-bold text-navy-900" x-text="dashboard?.risk_analysis?.competitive_landscape?.competing_count || 0"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Competition Level</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium"
+                                        :class="{
+                                            'bg-red-100 text-red-700': dashboard?.risk_analysis?.competitive_landscape?.risk_level === 'high',
+                                            'bg-amber-100 text-amber-700': dashboard?.risk_analysis?.competitive_landscape?.risk_level === 'medium',
+                                            'bg-emerald-100 text-emerald-700': dashboard?.risk_analysis?.competitive_landscape?.risk_level === 'low'
+                                        }"
+                                        x-text="(dashboard?.risk_analysis?.competitive_landscape?.risk_level || 'medium').toUpperCase()"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enrollment Summary -->
+                        <div class="bg-white border border-slate-200 rounded-xl p-5">
+                            <h4 class="font-semibold text-navy-900 mb-3 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                </svg>
+                                Enrollment Forecast
+                            </h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Target</span>
+                                    <span class="font-bold text-navy-900" x-text="(dashboard?.enrollment_forecast?.target_enrollment || results?.extracted_protocol?.target_enrollment || 0).toLocaleString()"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Est. Duration (Base)</span>
+                                    <span class="font-bold text-primary-600" x-text="((dashboard?.enrollment_forecast?.scenarios || []).find(s => s.name === 'base')?.months || 24) + ' months'"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Benchmark</span>
+                                    <span class="text-slate-500" x-text="(dashboard?.enrollment_forecast?.historical_benchmark?.range || '18-28') + ' months'"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Site Strategy Summary -->
+                        <div class="bg-white border border-slate-200 rounded-xl p-5">
+                            <h4 class="font-semibold text-navy-900 mb-3 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                </svg>
+                                Site Strategy
+                            </h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Recommended Sites</span>
+                                    <span class="font-bold text-navy-900" x-text="dashboard?.site_intelligence?.strategy?.recommended_sites || 50"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Countries</span>
+                                    <span class="font-bold text-navy-900" x-text="dashboard?.site_intelligence?.strategy?.recommended_countries || 12"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-600">Pts/Site Target</span>
+                                    <span class="font-bold text-navy-900" x-text="dashboard?.site_intelligence?.strategy?.pts_per_site_target || 15"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Recommendations (excluding HIGH priority already shown in Critical Warnings) -->
+                    <div class="mb-8">
+                        <h3 class="font-display text-lg font-bold text-navy-900 mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Additional Recommendations
+                        </h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <template x-for="(rec, idx) in (dashboard?.protocol_optimization?.recommendations || []).filter(r => r.priority !== 'high').slice(0, 4)" :key="idx">
+                                <div class="bg-white rounded-xl p-4 border border-slate-200 hover:border-primary-300 transition-colors">
+                                    <div class="flex items-start gap-3">
+                                        <span class="px-2 py-1 rounded text-xs font-bold"
+                                            :class="{
+                                                'bg-red-100 text-red-700': rec.priority === 'high',
+                                                'bg-amber-100 text-amber-700': rec.priority === 'medium',
+                                                'bg-emerald-100 text-emerald-700': rec.priority === 'low'
+                                            }"
+                                            x-text="rec.priority?.toUpperCase()"></span>
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-800" x-text="rec.recommendation"></p>
+                                            <p class="text-xs text-slate-500 mt-1" x-text="rec.category"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Protocol Strengths -->
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
+                        <h3 class="font-semibold text-emerald-800 mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Protocol Strengths
+                        </h3>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <template x-for="strength in (dashboard?.protocol_optimization?.strengths || [])" :key="strength.strength">
+                                <div class="flex items-start gap-2 text-sm text-emerald-700">
+                                    <span class="text-emerald-500 mt-0.5 flex-shrink-0">+</span>
+                                    <div>
+                                        <span class="font-medium" x-text="strength.strength"></span>
+                                        <span class="text-emerald-600" x-text="' - ' + strength.detail"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 2: COMPETITIVE LANDSCAPE ==================== -->
+                <div x-show="activeTab === 'landscape'" x-transition>
+
+                    <!-- Therapeutic Area & Summary -->
+                    <div class="mb-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl border border-primary-100">
+                        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                            <div>
+                                <span class="text-sm text-slate-500">Detected Therapeutic Area:</span>
+                                <span class="ml-2 px-3 py-1 bg-primary-500 text-white rounded-full text-sm font-semibold" x-text="similarTrialsData?.detected_therapeutic_area || 'General'"></span>
+                            </div>
+                            <div class="flex gap-4 text-sm">
+                                <span class="text-slate-600">Total Matched: <span class="font-bold text-navy-900" x-text="similarTrialsData?.total_matched || 0"></span></span>
+                                <span class="text-slate-600">Showing: <span class="font-bold text-navy-900" x-text="filteredTrials?.length || 0"></span></span>
+                            </div>
+                        </div>
+
+                        <!-- Mechanism Groups -->
+                        <div x-show="Object.keys(similarTrialsData?.mechanism_groups || {}).length > 0">
+                            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Mechanism of Action Breakdown</div>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="[mech, count] in Object.entries(similarTrialsData?.mechanism_groups || {})" :key="mech">
+                                    <span class="px-3 py-1.5 bg-white rounded-lg text-sm shadow-sm border border-slate-200">
+                                        <span class="font-medium text-navy-900" x-text="mech"></span>
+                                        <span class="ml-1 text-primary-600 font-bold" x-text="'(' + count + ')'"></span>
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sponsor Track Record -->
+                    <template x-if="similarTrialsData?.sponsor_track_record?.sponsor_name">
+                        <div class="mb-6 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+                            <div class="flex items-center gap-2 mb-4">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                </svg>
+                                <h3 class="font-semibold text-indigo-900">Sponsor Track Record</h3>
+                                <span class="ml-2 px-3 py-1 bg-indigo-600 text-white rounded-full text-sm font-medium" x-text="similarTrialsData?.sponsor_track_record?.sponsor_name"></span>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-white rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-indigo-600" x-text="similarTrialsData?.sponsor_track_record?.total_trials || 0"></div>
+                                    <div class="text-xs text-slate-500">Total Trials</div>
+                                </div>
+                                <div class="bg-white rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-emerald-600" x-text="(similarTrialsData?.sponsor_track_record?.completion_rate || 0) + '%'"></div>
+                                    <div class="text-xs text-slate-500">Completion Rate</div>
+                                </div>
+                                <div class="bg-white rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-amber-600" x-text="(similarTrialsData?.sponsor_track_record?.termination_rate || 0) + '%'"></div>
+                                    <div class="text-xs text-slate-500">Termination Rate</div>
+                                </div>
+                                <div class="bg-white rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-blue-600" x-text="similarTrialsData?.sponsor_track_record?.therapeutic_area_experience?.trials_in_area || 0"></div>
+                                    <div class="text-xs text-slate-500">In This Area</div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Sponsors Leading Similar Trials -->
+                    <div class="mb-6 p-5 bg-white border border-slate-200 rounded-xl">
+                        <div class="flex items-center gap-2 mb-4">
+                            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                            </svg>
+                            <h3 class="font-semibold text-navy-900">Top Sponsors in Similar Trials</h3>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Organizations leading the most similar trials in this therapeutic area</p>
+                        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <template x-for="(sponsor, index) in (dashboard?.competitive_landscape?.top_sponsors || similarTrialsData?.top_sponsors || []).slice(0, 6)" :key="sponsor.name">
+                                <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                                        :class="{ 'bg-primary-500': index < 3, 'bg-slate-400': index >= 3 }"
+                                        x-text="index + 1"></div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="font-medium text-navy-900 text-sm truncate" x-text="sponsor.name"></div>
+                                        <div class="text-xs text-slate-500">
+                                            <span x-text="sponsor.trial_count || sponsor.trials"></span> trials
+                                            <span x-show="sponsor.completion_rate" class="ml-2 text-emerald-600" x-text="'(' + sponsor.completion_rate + '% completed)'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="!(dashboard?.competitive_landscape?.top_sponsors || similarTrialsData?.top_sponsors)?.length" class="text-center py-4 text-slate-500">
+                            Sponsor analysis based on similar trials not yet available.
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="flex flex-wrap gap-3 mb-6 p-4 bg-slate-50 rounded-xl">
+                        <select x-model="filterStatus" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                            <option value="all">All Statuses</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="RECRUITING">Recruiting</option>
+                            <option value="TERMINATED">Terminated</option>
+                        </select>
+                        <select x-model="filterPhase" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                            <option value="all">All Phases</option>
+                            <option value="PHASE1">Phase 1</option>
+                            <option value="PHASE2">Phase 2</option>
+                            <option value="PHASE3">Phase 3</option>
+                        </select>
+                        <input type="number" x-model="filterMinScore" min="0" max="100" placeholder="Min Score" class="px-3 py-2 border border-slate-200 rounded-lg text-sm w-24">
+                    </div>
+
+                    <!-- Trial Cards -->
+                    <div class="space-y-4">
+                        <template x-for="trial in filteredTrials" :key="trial.nct_id">
+                            <div class="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg transition-shadow">
+                                <!-- Header -->
+                                <div class="flex items-start justify-between mb-4">
+                                    <div>
+                                        <a :href="trial.clinicaltrials_url || ('https://clinicaltrials.gov/study/' + trial.nct_id)" target="_blank" class="text-primary-600 hover:underline font-mono text-sm font-semibold" x-text="trial.nct_id"></a>
+                                        <h4 class="font-semibold text-navy-900 mt-1" x-text="trial.title?.slice(0, 100) + (trial.title?.length > 100 ? '...' : '')"></h4>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-2xl font-bold text-primary-500" x-text="(trial.overall_score || trial.overall_similarity || 0).toFixed(1)"></div>
+                                        <div class="text-xs text-slate-500">Match Score</div>
+                                    </div>
+                                </div>
+
+                                <!-- Meta Info -->
+                                <div class="flex flex-wrap gap-2 mb-4">
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium"
+                                        :class="{
+                                            'bg-emerald-100 text-emerald-700': trial.status === 'COMPLETED',
+                                            'bg-blue-100 text-blue-700': trial.status === 'RECRUITING',
+                                            'bg-red-100 text-red-700': trial.status === 'TERMINATED' || trial.status === 'WITHDRAWN',
+                                            'bg-slate-100 text-slate-700': !['COMPLETED', 'RECRUITING', 'TERMINATED', 'WITHDRAWN'].includes(trial.status)
+                                        }"
+                                        x-text="trial.status"></span>
+                                    <span class="px-2 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-medium" x-text="trial.phase"></span>
+                                    <span x-show="trial.mechanism_class && trial.mechanism_class !== 'Other'" class="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium" x-text="trial.mechanism_class"></span>
+                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-xs" x-text="(trial.enrollment || 'N/A') + ' patients'"></span>
+                                </div>
+
+                                <!-- Dimension Scores -->
+                                <div class="grid grid-cols-5 gap-2 mb-4 p-3 bg-slate-50 rounded-xl">
+                                    <div class="text-center">
+                                        <div class="text-lg font-bold text-navy-900" x-text="(trial.dimension_scores?.condition || trial.condition_score || 0).toFixed(0)"></div>
+                                        <div class="text-xs text-slate-500">Condition</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-lg font-bold text-navy-900" x-text="(trial.dimension_scores?.intervention || trial.intervention_score || 0).toFixed(0)"></div>
+                                        <div class="text-xs text-slate-500">Intervention</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-lg font-bold text-navy-900" x-text="(trial.dimension_scores?.endpoint || trial.endpoint_score || 0).toFixed(0)"></div>
+                                        <div class="text-xs text-slate-500">Endpoint</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-lg font-bold text-navy-900" x-text="(trial.dimension_scores?.population || trial.population_score || 0).toFixed(0)"></div>
+                                        <div class="text-xs text-slate-500">Population</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-lg font-bold text-navy-900" x-text="(trial.dimension_scores?.design || trial.design_score || 0).toFixed(0)"></div>
+                                        <div class="text-xs text-slate-500">Design</div>
+                                    </div>
+                                </div>
+
+                                <!-- Relevance Explanation -->
+                                <div x-show="trial.relevance_explanation" class="mb-4 p-3 bg-blue-50 rounded-lg">
+                                    <p class="text-sm text-blue-800" x-text="trial.relevance_explanation"></p>
+                                </div>
+
+                                <!-- Similarities & Differences -->
+                                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                                    <div x-show="trial.key_similarities?.length">
+                                        <div class="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Key Similarities</div>
+                                        <ul class="space-y-1">
+                                            <template x-for="sim in (trial.key_similarities || []).slice(0, 3)" :key="sim">
+                                                <li class="text-sm text-slate-600 flex items-start gap-1">
+                                                    <span class="text-emerald-500">&#10003;</span>
+                                                    <span x-text="sim"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                    <div x-show="trial.key_differences?.length">
+                                        <div class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">Key Differences</div>
+                                        <ul class="space-y-1">
+                                            <template x-for="diff in (trial.key_differences || []).slice(0, 3)" :key="diff">
+                                                <li class="text-sm text-slate-600 flex items-start gap-1">
+                                                    <span class="text-amber-500">&#9679;</span>
+                                                    <span x-text="diff"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Strategic Insights -->
+                                <div x-show="trial.strategic_insights?.length" class="p-3 bg-violet-50 rounded-lg">
+                                    <div class="text-xs font-semibold text-violet-600 uppercase tracking-wider mb-1">Strategic Insight</div>
+                                    <p class="text-sm text-violet-800" x-text="trial.strategic_insights?.[0]"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="!filteredTrials?.length" class="text-center py-8 text-slate-500">
+                        No trials match your filter criteria.
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 3: PROTOCOL DESIGN ==================== -->
+                <div x-show="activeTab === 'design'" x-transition>
+
+                    <!-- Sub-navigation for Protocol Design sections -->
+                    <div class="flex flex-wrap gap-2 mb-6 p-2 bg-slate-50 rounded-xl">
+                        <button @click="designSection = 'optimization'"
+                            :class="designSection === 'optimization' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Optimization
+                        </button>
+                        <button @click="designSection = 'eligibility'"
+                            :class="designSection === 'eligibility' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Eligibility
+                        </button>
+                        <button @click="designSection = 'endpoints'"
+                            :class="designSection === 'endpoints' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Endpoints
+                        </button>
+                        <button @click="designSection = 'amendments'"
+                            :class="designSection === 'amendments' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Amendment Risk
+                        </button>
+                    </div>
+
+                    <!-- OPTIMIZATION Section -->
+                    <div x-show="designSection === 'optimization'">
+                        <!-- Key Metrics -->
+                        <div class="grid md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Amendment Risk</div>
+                                <div class="text-3xl font-bold"
+                                    :class="{
+                                        'text-emerald-500': (dashboard?.amendment_intelligence?.overall_risk_score || dashboard?.protocol_optimization?.amendment_risk?.probability || 50) < 40,
+                                        'text-amber-500': (dashboard?.amendment_intelligence?.overall_risk_score || dashboard?.protocol_optimization?.amendment_risk?.probability || 50) >= 40 && (dashboard?.amendment_intelligence?.overall_risk_score || dashboard?.protocol_optimization?.amendment_risk?.probability || 50) < 60,
+                                        'text-red-500': (dashboard?.amendment_intelligence?.overall_risk_score || dashboard?.protocol_optimization?.amendment_risk?.probability || 50) >= 60
+                                    }"
+                                    x-text="(dashboard?.amendment_intelligence?.overall_risk_score || dashboard?.protocol_optimization?.amendment_risk?.probability || 50) + '/100'"></div>
+                            </div>
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Complexity Score</div>
+                                <div class="text-3xl font-bold text-navy-900" x-text="dashboard?.protocol_optimization?.complexity_score?.score || 50"></div>
+                            </div>
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Similar Trial Success</div>
+                                <div class="text-3xl font-bold text-emerald-500" x-text="(dashboard?.protocol_optimization?.success_rate || 68) + '%'"></div>
+                            </div>
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Trials Analyzed</div>
+                                <div class="text-3xl font-bold text-blue-500" x-text="dashboard?.protocol_optimization?.trials_analyzed || 0"></div>
+                            </div>
+                        </div>
+
+                        <!-- Design Comparison & Amendment Drivers -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white rounded-xl p-5 border border-slate-200">
+                                <h3 class="font-semibold text-navy-900 mb-4">Design vs. Successful Trials</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="text-xs text-slate-500 uppercase bg-slate-50">
+                                                <th class="text-left py-2 px-2">Metric</th>
+                                                <th class="text-center py-2 px-2">Yours</th>
+                                                <th class="text-center py-2 px-2">Benchmark</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="comp in (dashboard?.protocol_optimization?.design_comparison || [])" :key="comp.metric">
+                                                <tr class="border-t border-slate-100">
+                                                    <td class="py-2 px-2 text-slate-700" x-text="comp.metric"></td>
+                                                    <td class="py-2 px-2 text-center font-medium" x-text="comp.your_value"></td>
+                                                    <td class="py-2 px-2 text-center text-slate-500" x-text="comp.benchmark_avg"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-xl p-5 border border-slate-200">
+                                <h3 class="font-semibold text-navy-900 mb-4">Top Amendment Risk Drivers</h3>
+                                <div class="space-y-3">
+                                    <template x-for="driver in (dashboard?.protocol_optimization?.amendment_risk?.drivers || []).slice(0, 5)" :key="driver.factor">
+                                        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                                            <span class="text-sm text-slate-700" x-text="driver.factor"></span>
+                                            <span class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-semibold" x-text="'+' + driver.impact + '%'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Terminated Trials -->
+                        <div class="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-xl p-5 mb-6">
+                            <h3 class="font-semibold text-red-800 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                Terminated Trials
+                                <span class="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium"
+                                      x-text="(dashboard?.protocol_optimization?.terminated_trials?.length || 0) + ' trials'"></span>
+                            </h3>
+                            <div x-show="(dashboard?.protocol_optimization?.terminated_trials || []).length > 0" class="space-y-2 max-h-64 overflow-y-auto">
+                                <template x-for="trial in (dashboard?.protocol_optimization?.terminated_trials || [])" :key="trial.nct_id">
+                                    <div class="flex items-start gap-3 p-2 bg-white/70 rounded-lg border border-red-100">
+                                        <a :href="'https://clinicaltrials.gov/study/' + trial.nct_id" target="_blank"
+                                           class="text-primary-600 hover:underline font-mono text-sm font-semibold flex-shrink-0"
+                                           x-text="trial.nct_id"></a>
+                                        <span class="text-sm text-slate-700" x-text="trial.title || trial.name || 'No title available'"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="!(dashboard?.protocol_optimization?.terminated_trials?.length)" class="text-center py-4">
+                                <p class="text-sm text-emerald-600 font-medium">No terminated trials in similar set - positive indicator</p>
+                            </div>
+                        </div>
+
+                        <!-- Recommendations -->
+                        <div class="bg-white border border-slate-200 rounded-2xl p-6">
+                            <h3 class="font-display font-bold text-navy-900 mb-5">AI-Powered Recommendations</h3>
+                            <div class="space-y-4">
+                                <template x-for="(rec, idx) in (dashboard?.protocol_optimization?.recommendations || [])" :key="idx">
+                                    <div class="rounded-xl overflow-hidden border"
+                                        :class="{
+                                            'bg-red-50 border-red-200': rec.priority === 'high',
+                                            'bg-amber-50 border-amber-200': rec.priority === 'medium',
+                                            'bg-emerald-50 border-emerald-200': rec.priority === 'low'
+                                        }"
+                                        x-data="{ expanded: false }">
+                                        <div class="p-4 cursor-pointer" @click="expanded = !expanded">
+                                            <div class="flex items-start gap-3">
+                                                <span class="px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wide flex-shrink-0"
+                                                    :class="{
+                                                        'bg-red-200 text-red-800': rec.priority === 'high',
+                                                        'bg-amber-200 text-amber-800': rec.priority === 'medium',
+                                                        'bg-emerald-200 text-emerald-800': rec.priority === 'low'
+                                                    }"
+                                                    x-text="rec.priority"></span>
+                                                <div class="flex-1 min-w-0">
+                                                    <span class="text-xs font-medium px-2 py-0.5 rounded bg-slate-200 text-slate-600" x-text="rec.category"></span>
+                                                    <h4 class="font-semibold text-slate-800 leading-snug mt-1" x-text="rec.recommendation"></h4>
+                                                    <p class="text-sm text-slate-600 mt-1.5" x-text="rec.rationale"></p>
+                                                </div>
+                                                <svg class="w-5 h-5 text-slate-400 transition-transform flex-shrink-0" :class="{ 'rotate-180': expanded }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div x-show="expanded" x-collapse class="px-4 pb-4 border-t border-slate-200">
+                                            <div class="pt-4 grid md:grid-cols-2 gap-4">
+                                                <div x-show="rec.evidence && rec.evidence.length > 0">
+                                                    <h5 class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Evidence</h5>
+                                                    <ul class="space-y-1.5">
+                                                        <template x-for="(ev, i) in (rec.evidence || [])" :key="i">
+                                                            <li class="text-sm text-slate-700 flex items-start gap-2">
+                                                                <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                                </svg>
+                                                                <span x-text="ev"></span>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </div>
+                                                <div x-show="rec.implementation && rec.implementation.length > 0">
+                                                    <h5 class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">Implementation</h5>
+                                                    <ul class="space-y-1.5">
+                                                        <template x-for="(step, i) in (rec.implementation || [])" :key="i">
+                                                            <li class="text-sm text-slate-700 flex items-start gap-2">
+                                                                <span class="w-5 h-5 bg-slate-200 rounded-full flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0" x-text="i + 1"></span>
+                                                                <span x-text="step"></span>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ELIGIBILITY Section -->
+                    <div x-show="designSection === 'eligibility'">
+                        <!-- Screen Failure Prediction -->
+                        <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 mb-6">
+                            <h3 class="font-semibold text-amber-900 mb-4">Screen Failure Prediction</h3>
+                            <div class="grid md:grid-cols-4 gap-4 text-center">
+                                <div>
+                                    <div class="text-3xl font-bold"
+                                        :class="{
+                                            'text-emerald-500': dashboard?.eligibility_analysis?.screen_failure_prediction?.assessment === 'aligned',
+                                            'text-amber-500': dashboard?.eligibility_analysis?.screen_failure_prediction?.assessment === 'moderate',
+                                            'text-red-500': dashboard?.eligibility_analysis?.screen_failure_prediction?.assessment === 'higher'
+                                        }"
+                                        x-text="dashboard?.eligibility_analysis?.screen_failure_prediction?.predicted_ratio || '2.5:1'"></div>
+                                    <div class="text-sm text-slate-600">Predicted Ratio</div>
+                                </div>
+                                <div>
+                                    <div class="text-3xl font-bold text-slate-400" x-text="dashboard?.eligibility_analysis?.screen_failure_prediction?.benchmark_ratio || '2.5:1'"></div>
+                                    <div class="text-sm text-slate-600">Benchmark</div>
+                                </div>
+                                <div>
+                                    <div class="text-3xl font-bold text-emerald-500" x-text="dashboard?.eligibility_analysis?.screen_failure_prediction?.best_in_class_ratio || '2.0:1'"></div>
+                                    <div class="text-sm text-slate-600">Best in Class</div>
+                                </div>
+                                <div>
+                                    <div class="text-3xl font-bold text-navy-700" x-text="dashboard?.eligibility_analysis?.screen_failure_prediction?.your_exclusions || 0"></div>
+                                    <div class="text-sm text-slate-600">Your Exclusions</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Criterion Benchmark & Patient Pool -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                                <h3 class="font-semibold text-navy-900 mb-4">Your Criteria vs Similar Trials</h3>
+                                <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-slate-50 sticky top-0">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left font-semibold text-slate-600">Criterion</th>
+                                                <th class="px-3 py-2 text-center font-semibold text-slate-600">Your Value</th>
+                                                <th class="px-3 py-2 text-center font-semibold text-slate-600">% Similar</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="crit in (dashboard?.eligibility_analysis?.criterion_benchmark || [])" :key="crit.criterion">
+                                                <tr class="border-t border-slate-100 hover:bg-slate-50">
+                                                    <td class="px-3 py-2 text-slate-700 text-xs" x-text="crit.criterion"></td>
+                                                    <td class="px-3 py-2 text-center text-xs font-medium" x-text="crit.your_value"></td>
+                                                    <td class="px-3 py-2 text-center text-xs" x-text="(crit.similar_trials_pct || 0) + '%'"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5">
+                                <h3 class="font-semibold text-emerald-900 mb-3">Patient Pool Estimation</h3>
+                                <div class="space-y-2 text-sm">
+                                    <template x-for="stage in (dashboard?.eligibility_analysis?.patient_pool_estimation?.stages || [])" :key="stage.stage">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-700" x-text="stage.stage"></span>
+                                            <span class="font-semibold text-emerald-700" x-text="stage.count?.toLocaleString()"></span>
+                                        </div>
+                                    </template>
+                                    <div class="flex justify-between border-t border-emerald-200 pt-2 mt-2">
+                                        <span class="text-emerald-800 font-medium">Global Estimate</span>
+                                        <span class="font-bold text-emerald-600" x-text="(dashboard?.eligibility_analysis?.patient_pool_estimation?.global_estimate || 0).toLocaleString()"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Optimization Suggestions -->
+                        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5">
+                            <h3 class="font-semibold text-emerald-900 mb-4">Eligibility Optimization Suggestions</h3>
+                            <div class="space-y-3">
+                                <template x-for="sug in (dashboard?.eligibility_analysis?.optimization_suggestions || [])" :key="sug.criterion">
+                                    <div class="p-4 bg-white rounded-xl border border-blue-100">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <div class="font-medium text-slate-800" x-text="sug.criterion"></div>
+                                                <div class="text-sm text-slate-600 mt-1" x-text="'Current: ' + sug.current"></div>
+                                                <div class="text-sm text-blue-700 mt-1" x-text="'Suggestion: ' + sug.suggestion"></div>
+                                            </div>
+                                            <span class="text-emerald-600 font-semibold text-sm ml-4" x-text="sug.pool_impact"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="!(dashboard?.eligibility_analysis?.optimization_suggestions?.length)" class="text-center py-4 text-blue-700">
+                                    Your eligibility criteria are well-aligned with similar trials. No major optimization suggestions.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ENDPOINTS Section -->
+                    <div x-show="designSection === 'endpoints'">
+                        <!-- Your Endpoint Strategy -->
+                        <div class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-6 text-white mb-6">
+                            <h3 class="font-semibold mb-2">Your Primary Endpoint</h3>
+                            <p class="text-lg" x-text="dashboard?.endpoint_intelligence?.primary_endpoint || results?.extracted_protocol?.primary_endpoint || 'N/A'"></p>
+                            <div class="mt-4 flex flex-wrap items-center gap-2">
+                                <span class="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">FDA Alignment:</span>
+                                <span class="px-3 py-1 rounded-full text-sm font-bold"
+                                    :class="{
+                                        'bg-emerald-400 text-emerald-900': dashboard?.endpoint_intelligence?.fda_alignment?.status === 'strong',
+                                        'bg-amber-400 text-amber-900': dashboard?.endpoint_intelligence?.fda_alignment?.status === 'moderate',
+                                        'bg-red-400 text-red-900': dashboard?.endpoint_intelligence?.fda_alignment?.status === 'weak'
+                                    }"
+                                    x-text="(dashboard?.endpoint_intelligence?.fda_alignment?.status || 'moderate').toUpperCase()"></span>
+                            </div>
+                        </div>
+
+                        <!-- Primary Endpoint Distribution -->
+                        <div class="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200 rounded-2xl p-5 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Primary Endpoint Types in Similar Trials</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <template x-for="ep in (dashboard?.endpoint_intelligence?.primary_endpoint_distribution || [])" :key="ep.endpoint_type">
+                                    <div class="bg-white rounded-xl p-3 text-center">
+                                        <div class="text-2xl font-bold text-violet-600" x-text="ep.percentage + '%'"></div>
+                                        <div class="text-xs text-slate-600 mt-1" x-text="ep.endpoint_type"></div>
+                                        <div class="text-xs text-slate-400" x-text="ep.count + ' trials'"></div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Endpoints from Similar Trials -->
+                        <div class="bg-white border border-slate-200 rounded-2xl p-5 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Endpoints from Similar Trials</h3>
+                            <div class="space-y-3 max-h-80 overflow-y-auto">
+                                <template x-for="benchmark in (dashboard?.endpoint_intelligence?.historical_benchmarks || [])" :key="benchmark.nct_id">
+                                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                        <div class="flex items-start justify-between gap-4 mb-3">
+                                            <div class="flex-1">
+                                                <h4 class="font-medium text-navy-900 text-sm" x-text="benchmark.trial_name"></h4>
+                                                <a :href="'https://clinicaltrials.gov/study/' + benchmark.nct_id" target="_blank"
+                                                   class="text-xs text-primary-600 hover:underline font-mono" x-text="benchmark.nct_id"></a>
+                                            </div>
+                                            <span class="px-2 py-1 rounded-full text-xs font-medium"
+                                                :class="{
+                                                    'bg-emerald-100 text-emerald-700': benchmark.status === 'COMPLETED',
+                                                    'bg-blue-100 text-blue-700': benchmark.status === 'RECRUITING',
+                                                    'bg-slate-100 text-slate-600': !['COMPLETED', 'RECRUITING'].includes(benchmark.status)
+                                                }"
+                                                x-text="benchmark.outcome || benchmark.status"></span>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-3 border border-slate-100">
+                                            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Primary Endpoint</div>
+                                            <p class="text-sm text-slate-700" x-text="benchmark.primary_endpoint || 'See protocol for endpoint details'"></p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Enrollment Stats -->
+                        <div class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Enrollment Comparison with Similar Trials</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                <div class="bg-white rounded-xl p-4 text-center">
+                                    <div class="text-sm text-slate-500">Your Target</div>
+                                    <div class="text-2xl font-bold text-primary-600" x-text="dashboard?.endpoint_intelligence?.enrollment_stats?.your_target?.toLocaleString() || 'N/A'"></div>
+                                </div>
+                                <div class="bg-white rounded-xl p-4 text-center">
+                                    <div class="text-sm text-slate-500">Similar Trial Mean</div>
+                                    <div class="text-2xl font-bold text-emerald-600" x-text="dashboard?.endpoint_intelligence?.enrollment_stats?.mean?.toLocaleString() || 'N/A'"></div>
+                                </div>
+                                <div class="bg-white rounded-xl p-4 text-center">
+                                    <div class="text-sm text-slate-500">Median</div>
+                                    <div class="text-2xl font-bold text-slate-700" x-text="dashboard?.endpoint_intelligence?.enrollment_stats?.median?.toLocaleString() || 'N/A'"></div>
+                                </div>
+                                <div class="bg-white rounded-xl p-4 text-center">
+                                    <div class="text-sm text-slate-500">Min</div>
+                                    <div class="text-2xl font-bold text-slate-500" x-text="dashboard?.endpoint_intelligence?.enrollment_stats?.min?.toLocaleString() || 'N/A'"></div>
+                                </div>
+                                <div class="bg-white rounded-xl p-4 text-center">
+                                    <div class="text-sm text-slate-500">Max</div>
+                                    <div class="text-2xl font-bold text-slate-500" x-text="dashboard?.endpoint_intelligence?.enrollment_stats?.max?.toLocaleString() || 'N/A'"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sample Size Scenarios -->
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Sample Size Scenarios</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="text-slate-500">
+                                            <th class="px-4 py-2 text-left">Scenario</th>
+                                            <th class="px-4 py-2 text-center">Control Rate</th>
+                                            <th class="px-4 py-2 text-center">Treatment Rate</th>
+                                            <th class="px-4 py-2 text-center">Effect Size</th>
+                                            <th class="px-4 py-2 text-center">N Needed</th>
+                                            <th class="px-4 py-2 text-center">Power</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="scenario in (dashboard?.endpoint_intelligence?.sample_size_scenarios || [])" :key="scenario.scenario">
+                                            <tr class="border-t border-slate-200" :class="{'bg-primary-50': scenario.scenario === 'Base Case'}">
+                                                <td class="px-4 py-3 font-semibold text-slate-800" x-text="scenario.scenario"></td>
+                                                <td class="px-4 py-3 text-center" x-text="scenario.control_rate || '-'"></td>
+                                                <td class="px-4 py-3 text-center" x-text="scenario.treatment_rate || '-'"></td>
+                                                <td class="px-4 py-3 text-center text-violet-600" x-text="scenario.effect_size || (scenario.treatment_rate && scenario.control_rate ? Math.abs(parseFloat(scenario.treatment_rate) - parseFloat(scenario.control_rate)).toFixed(1) + '%' : '-')"></td>
+                                                <td class="px-4 py-3 text-center font-bold text-navy-900" x-text="scenario.patients_needed?.toLocaleString() || '-'"></td>
+                                                <td class="px-4 py-3 text-center" x-text="scenario.power + '%'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Sample Size Assumptions & Methodology -->
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="bg-white border border-slate-200 rounded-xl p-5">
+                                <h3 class="font-semibold text-navy-900 mb-4">Statistical Assumptions</h3>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <span class="text-sm text-slate-600">Alpha (Type I Error)</span>
+                                        <span class="font-semibold text-navy-900" x-text="dashboard?.endpoint_intelligence?.sample_size_assumptions?.alpha || '0.05 (two-sided)'"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <span class="text-sm text-slate-600">Statistical Power</span>
+                                        <span class="font-semibold text-navy-900" x-text="dashboard?.endpoint_intelligence?.sample_size_assumptions?.power || '80-90%'"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <span class="text-sm text-slate-600">Expected Dropout Rate</span>
+                                        <span class="font-semibold text-amber-600" x-text="dashboard?.endpoint_intelligence?.sample_size_assumptions?.dropout_rate || '15-20%'"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <span class="text-sm text-slate-600">Analysis Method</span>
+                                        <span class="font-semibold text-navy-900" x-text="dashboard?.endpoint_intelligence?.sample_size_assumptions?.analysis_method || 'ITT'"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+                                <h3 class="font-semibold text-blue-900 mb-4">Sample Size Insights</h3>
+                                <div class="space-y-3">
+                                    <div class="p-3 bg-white/70 rounded-lg">
+                                        <div class="text-xs font-semibold text-blue-600 uppercase mb-1">Your Target vs. Similar Trials</div>
+                                        <p class="text-sm text-slate-700" x-text="dashboard?.endpoint_intelligence?.sample_size_insights?.comparison || 'Your enrollment target is within the typical range for similar trials in this therapeutic area.'"></p>
+                                    </div>
+                                    <div class="p-3 bg-white/70 rounded-lg">
+                                        <div class="text-xs font-semibold text-blue-600 uppercase mb-1">Recommendation</div>
+                                        <p class="text-sm text-slate-700" x-text="dashboard?.endpoint_intelligence?.sample_size_insights?.recommendation || 'Consider planning for 15-20% over-enrollment to account for dropouts and ensure adequate power.'"></p>
+                                    </div>
+                                    <div class="p-3 bg-white/70 rounded-lg">
+                                        <div class="text-xs font-semibold text-blue-600 uppercase mb-1">Interim Analysis</div>
+                                        <p class="text-sm text-slate-700" x-text="dashboard?.endpoint_intelligence?.sample_size_insights?.interim_analysis || 'Plan interim analysis at 50% enrollment for futility/efficacy assessment.'"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AMENDMENTS Section -->
+                    <div x-show="designSection === 'amendments'">
+                        <!-- Risk Score Cards -->
+                        <div class="grid md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-5 border border-orange-200">
+                                <div class="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">Amendment Risk Score</div>
+                                <div class="text-4xl font-bold"
+                                    :class="{
+                                        'text-red-500': (dashboard?.amendment_intelligence?.overall_risk_score || 50) >= 60,
+                                        'text-amber-500': (dashboard?.amendment_intelligence?.overall_risk_score || 50) >= 40 && (dashboard?.amendment_intelligence?.overall_risk_score || 50) < 60,
+                                        'text-emerald-500': (dashboard?.amendment_intelligence?.overall_risk_score || 50) < 40
+                                    }"
+                                    x-text="(dashboard?.amendment_intelligence?.overall_risk_score || 50) + '/100'"></div>
+                            </div>
+                            <div class="bg-white rounded-xl p-5 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Predicted Amendments</div>
+                                <div class="text-3xl font-bold text-navy-900" x-text="dashboard?.amendment_intelligence?.predicted_amendments || '2.0'"></div>
+                            </div>
+                            <div class="bg-white rounded-xl p-5 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Industry Benchmark</div>
+                                <div class="text-3xl font-bold text-slate-600" x-text="((dashboard?.amendment_intelligence?.benchmarks?.industry_avg_amendment_rate || 0.57) * 100).toFixed(0) + '%'"></div>
+                            </div>
+                            <div class="bg-white rounded-xl p-5 border border-slate-200">
+                                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Trials Analyzed</div>
+                                <div class="text-3xl font-bold text-primary-600" x-text="dashboard?.amendment_intelligence?.trials_analyzed || 0"></div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Factors -->
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Risk Factors</h3>
+                            <div class="space-y-4">
+                                <template x-for="factor in (dashboard?.amendment_intelligence?.risk_factors || [])" :key="factor.category">
+                                    <div class="bg-white rounded-xl p-5 border border-slate-200">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2 mb-2">
+                                                    <span class="px-2 py-1 rounded-full text-xs font-bold uppercase"
+                                                        :class="{
+                                                            'bg-red-100 text-red-700': factor.risk_level === 'high',
+                                                            'bg-amber-100 text-amber-700': factor.risk_level === 'medium',
+                                                            'bg-emerald-100 text-emerald-700': factor.risk_level === 'low'
+                                                        }"
+                                                        x-text="factor.risk_level"></span>
+                                                    <h4 class="font-semibold text-navy-900" x-text="factor.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())"></h4>
+                                                </div>
+                                                <p class="text-sm text-slate-600 mb-3" x-text="factor.description"></p>
+                                                <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                                                    <div class="text-xs font-semibold text-emerald-700 uppercase mb-1">Mitigation Strategy</div>
+                                                    <p class="text-sm text-emerald-800" x-text="factor.mitigation"></p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right flex-shrink-0">
+                                                <div class="text-2xl font-bold"
+                                                    :class="{
+                                                        'text-red-500': factor.probability >= 60,
+                                                        'text-amber-500': factor.probability >= 40 && factor.probability < 60,
+                                                        'text-emerald-500': factor.probability < 40
+                                                    }"
+                                                    x-text="factor.probability + '%'"></div>
+                                                <div class="text-xs text-slate-500">probability</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Historical Patterns -->
+                        <div class="space-y-4">
+                            <h3 class="font-semibold text-navy-900">Historical Patterns from Similar Trials</h3>
+                            <template x-for="pattern in (dashboard?.amendment_intelligence?.historical_patterns || [])" :key="pattern.category">
+                                <div class="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-5 border border-violet-200">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div>
+                                            <h4 class="font-semibold text-navy-900" x-text="pattern.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())"></h4>
+                                            <p class="text-sm text-violet-600" x-text="pattern.frequency + ' trials (' + pattern.percentage + '%) had this issue'"></p>
+                                        </div>
+                                        <span class="px-3 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-medium" x-text="pattern.typical_timing"></span>
+                                    </div>
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <div class="bg-white/50 rounded-lg p-3">
+                                            <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Common Triggers</div>
+                                            <ul class="space-y-1">
+                                                <template x-for="trigger in pattern.common_triggers" :key="trigger">
+                                                    <li class="text-sm text-slate-600 flex items-start gap-2">
+                                                        <span class="text-red-400">⚠</span>
+                                                        <span x-text="trigger"></span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                        <div class="bg-white/50 rounded-lg p-3">
+                                            <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Prevention Strategies</div>
+                                            <ul class="space-y-1">
+                                                <template x-for="strategy in pattern.prevention_strategies" :key="strategy">
+                                                    <li class="text-sm text-slate-600 flex items-start gap-2">
+                                                        <span class="text-emerald-500">✓</span>
+                                                        <span x-text="strategy"></span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 4: OPERATIONS ==================== -->
+                <div x-show="activeTab === 'operations'" x-transition>
+
+                    <!-- Sub-navigation for Operations sections -->
+                    <div class="flex flex-wrap gap-2 mb-6 p-2 bg-slate-50 rounded-xl">
+                        <button @click="operationsSection = 'sites'"
+                            :class="operationsSection === 'sites' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Site Intelligence
+                        </button>
+                        <button @click="operationsSection = 'enrollment'"
+                            :class="operationsSection === 'enrollment' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Enrollment Forecast
+                        </button>
+                        <button @click="operationsSection = 'risk'"
+                            :class="operationsSection === 'risk' ? 'bg-white shadow text-primary-600' : 'text-slate-600 hover:text-slate-800'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                            Risk Analysis
+                        </button>
+                    </div>
+
+                    <!-- SITES Section -->
+                    <div x-show="operationsSection === 'sites'">
+                        <!-- Strategy Overview -->
+                        <div class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-6 text-white mb-6">
+                            <h3 class="font-semibold mb-4">Recommended Site Strategy</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold" x-text="dashboard?.site_intelligence?.strategy?.recommended_sites || 50"></div>
+                                    <div class="text-sm text-primary-200">Recommended Sites</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold" x-text="dashboard?.site_intelligence?.strategy?.recommended_countries || 12"></div>
+                                    <div class="text-sm text-primary-200">Countries</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold" x-text="dashboard?.site_intelligence?.strategy?.pts_per_site_target || 15"></div>
+                                    <div class="text-sm text-primary-200">Pts/Site Target</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold" x-text="dashboard?.site_intelligence?.strategy?.pts_per_site_benchmark || '-'"></div>
+                                    <div class="text-sm text-primary-200">Benchmark Avg</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold" x-text="dashboard?.site_intelligence?.strategy?.activation_timeline || '6-9mo'"></div>
+                                    <div class="text-sm text-primary-200">Activation</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Regional & Country Distribution -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-5">
+                                <h3 class="font-semibold text-navy-900 mb-4">Regional Distribution</h3>
+                                <div class="space-y-4">
+                                    <template x-for="region in (dashboard?.site_intelligence?.regional_allocation || [])" :key="region.region">
+                                        <div>
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-slate-700 font-medium" x-text="region.region"></span>
+                                                <span class="font-semibold text-navy-900" x-text="region.percentage + '%'"></span>
+                                            </div>
+                                            <div class="w-full bg-slate-200 rounded-full h-3">
+                                                <div class="h-3 rounded-full bg-primary-500" :style="'width: ' + region.percentage + '%'"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                                <h3 class="font-semibold text-navy-900 mb-4">Top Countries in Similar Trials</h3>
+                                <div class="space-y-2 max-h-64 overflow-y-auto">
+                                    <template x-for="(country, index) in (dashboard?.site_intelligence?.top_countries || []).slice(0, 10)" :key="country.country">
+                                        <div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs" x-text="index + 1"></div>
+                                                <span class="text-slate-700" x-text="country.country"></span>
+                                            </div>
+                                            <span class="text-sm font-semibold text-slate-600" x-text="country.sites + ' sites'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Sites from Similar Trials -->
+                        <div class="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Sites with Experience in Similar Trials</h3>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <template x-for="(site, index) in sortedTopSites.slice(0, 12)" :key="site.facility_name + index">
+                                    <div x-data="{ expanded: false }" class="bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                                        <div class="flex items-center justify-between p-3 cursor-pointer" @click="expanded = !expanded">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                                                    :class="{ 'bg-primary-500': index < 3, 'bg-slate-400': index >= 3 }"
+                                                    x-text="index + 1"></div>
+                                                <div class="min-w-0">
+                                                    <div class="font-medium text-navy-900 text-sm" x-text="site.facility_name"></div>
+                                                    <div class="text-xs text-slate-500" x-text="[site.city, site.country].filter(Boolean).join(', ')"></div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="font-semibold text-primary-600" x-text="site.similar_trials + ' trials'"></div>
+                                            </div>
+                                        </div>
+                                        <div x-show="expanded" x-transition class="px-3 pb-3">
+                                            <div class="bg-white rounded-lg p-2 border border-slate-200">
+                                                <template x-for="trial in (site.trials || [])" :key="trial.nct_id">
+                                                    <div class="flex items-start gap-2 py-1 border-b border-slate-100 last:border-0">
+                                                        <a :href="'https://clinicaltrials.gov/study/' + trial.nct_id" target="_blank"
+                                                           class="text-xs text-primary-600 hover:underline font-mono flex-shrink-0" x-text="trial.nct_id"></a>
+                                                        <span class="text-xs text-slate-600 line-clamp-2" x-text="trial.title"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Site Recommendations -->
+                        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5">
+                            <h3 class="font-semibold text-emerald-900 mb-3">Site Selection Recommendations</h3>
+                            <div class="grid md:grid-cols-2 gap-4 text-sm">
+                                <div class="bg-white rounded-lg p-3">
+                                    <div class="font-medium text-slate-800 mb-1">High-Volume Centers</div>
+                                    <p class="text-slate-600">Prioritize sites with ≥3 similar trials for faster startup</p>
+                                </div>
+                                <div class="bg-white rounded-lg p-3">
+                                    <div class="font-medium text-slate-800 mb-1">Regional Balance</div>
+                                    <p class="text-slate-600">Match regional distribution to similar trials for regulatory alignment</p>
+                                </div>
+                                <div class="bg-white rounded-lg p-3">
+                                    <div class="font-medium text-slate-800 mb-1">Backup Strategy</div>
+                                    <p class="text-slate-600">Plan for 10-15% site dropout; pre-qualify backup sites</p>
+                                </div>
+                                <div class="bg-white rounded-lg p-3">
+                                    <div class="font-medium text-slate-800 mb-1">Competitive Landscape</div>
+                                    <p class="text-slate-600">Avoid sites heavily committed to competing trials</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ENROLLMENT Section -->
+                    <div x-show="operationsSection === 'enrollment'">
+                        <!-- Timeline Scenarios -->
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Timeline Projections</h3>
+                            <div class="text-center mb-4">
+                                <span class="text-slate-600">Target Enrollment: </span>
+                                <span class="text-2xl font-bold text-navy-900" x-text="(dashboard?.enrollment_forecast?.target_enrollment || 800).toLocaleString()"></span>
+                                <span class="text-slate-600"> patients</span>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-4">
+                                <template x-for="scenario in (dashboard?.enrollment_forecast?.scenarios || [])" :key="scenario.name">
+                                    <div class="bg-white rounded-xl p-4 text-center border-2"
+                                        :class="{
+                                            'border-emerald-300': scenario.name === 'optimistic',
+                                            'border-primary-300': scenario.name === 'base',
+                                            'border-red-300': scenario.name === 'conservative'
+                                        }">
+                                        <div class="text-3xl font-bold mb-1"
+                                            :class="{
+                                                'text-emerald-500': scenario.name === 'optimistic',
+                                                'text-primary-500': scenario.name === 'base',
+                                                'text-red-500': scenario.name === 'conservative'
+                                            }"
+                                            x-text="scenario.months + ' mo'"></div>
+                                        <div class="text-sm text-slate-500 capitalize mb-2" x-text="scenario.name"></div>
+                                        <div class="text-xs text-slate-400" x-text="scenario.probability + '% probability'"></div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Assumptions & Simulator -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                                <h3 class="font-semibold text-navy-900 mb-4">Base Case Assumptions</h3>
+                                <ul class="space-y-2">
+                                    <template x-for="assumption in ((dashboard?.enrollment_forecast?.scenarios || []).find(s => s.name === 'base')?.assumptions || [])" :key="assumption">
+                                        <li class="flex items-start gap-2 text-sm text-slate-600">
+                                            <span class="text-primary-500 mt-1">&#8226;</span>
+                                            <span x-text="assumption"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-violet-50 to-blue-50 border border-violet-200 rounded-2xl p-5">
+                                <h3 class="font-semibold text-violet-900 mb-4">Scenario Simulator</h3>
+                                <div class="space-y-3">
+                                    <template x-for="sim in (dashboard?.enrollment_forecast?.scenarios_simulator || [])" :key="sim.change">
+                                        <div class="flex items-center justify-between p-2 bg-white rounded-lg">
+                                            <span class="text-sm text-slate-700" x-text="sim.change"></span>
+                                            <span class="font-semibold text-emerald-600" x-text="sim.impact_months + ' months'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enrollment Bottlenecks -->
+                        <div class="bg-white border border-slate-200 rounded-xl p-5">
+                            <h3 class="font-semibold text-navy-900 mb-4">Enrollment Bottleneck Analysis</h3>
+                            <div class="space-y-4">
+                                <template x-for="bottleneck in (dashboard?.enrollment_forecast?.bottlenecks || [])" :key="bottleneck.issue">
+                                    <div class="flex items-start gap-4 p-4 rounded-xl"
+                                        :class="{
+                                            'bg-red-50 border border-red-200': bottleneck.severity === 'critical',
+                                            'bg-amber-50 border border-amber-200': bottleneck.severity === 'moderate',
+                                            'bg-emerald-50 border border-emerald-200': bottleneck.severity === 'manageable'
+                                        }">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                            :class="{
+                                                'bg-red-200 text-red-700': bottleneck.severity === 'critical',
+                                                'bg-amber-200 text-amber-700': bottleneck.severity === 'moderate',
+                                                'bg-emerald-200 text-emerald-700': bottleneck.severity === 'manageable'
+                                            }">!</div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="font-semibold" x-text="bottleneck.issue"></span>
+                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full uppercase"
+                                                    :class="{
+                                                        'bg-red-200 text-red-700': bottleneck.severity === 'critical',
+                                                        'bg-amber-200 text-amber-700': bottleneck.severity === 'moderate',
+                                                        'bg-emerald-200 text-emerald-700': bottleneck.severity === 'manageable'
+                                                    }"
+                                                    x-text="bottleneck.severity"></span>
+                                            </div>
+                                            <p class="text-sm text-slate-600 mb-2" x-text="bottleneck.impact"></p>
+                                            <p class="text-xs font-medium text-slate-700"><span class="font-semibold">Mitigation:</span> <span x-text="bottleneck.mitigation"></span></p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RISK Section -->
+                    <div x-show="operationsSection === 'risk'">
+                        <!-- Risk Score & Predictions -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center">
+                                <div class="relative w-40 h-40 mb-4">
+                                    <svg class="w-full h-full transform -rotate-90">
+                                        <circle cx="80" cy="80" r="70" fill="none" stroke="#e2e8f0" stroke-width="12"></circle>
+                                        <circle cx="80" cy="80" r="70" fill="none" stroke-width="12" stroke-dasharray="440"
+                                            :stroke="(dashboard?.risk_analysis?.overall_score || 50) >= 60 ? '#ef4444' : (dashboard?.risk_analysis?.overall_score || 50) >= 40 ? '#f59e0b' : '#10b981'"
+                                            :stroke-dashoffset="440 - (440 * (dashboard?.risk_analysis?.overall_score || 50) / 100)"></circle>
+                                    </svg>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span class="text-4xl font-bold text-navy-900" x-text="dashboard?.risk_analysis?.overall_score || 50"></span>
+                                        <span class="text-sm text-slate-500">Risk Score</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6">
+                                <h3 class="font-semibold text-navy-900 mb-4">Probability Predictions</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between text-sm mb-1">
+                                            <span class="text-slate-600">Termination Risk</span>
+                                            <span class="font-semibold" x-text="(dashboard?.risk_analysis?.predictions?.termination_risk?.probability || 20) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-slate-200 rounded-full h-3">
+                                            <div class="bg-red-500 h-3 rounded-full" :style="'width: ' + (dashboard?.risk_analysis?.predictions?.termination_risk?.probability || 20) + '%'"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-sm mb-1">
+                                            <span class="text-slate-600">Enrollment Delay (>6mo)</span>
+                                            <span class="font-semibold" x-text="(dashboard?.risk_analysis?.predictions?.enrollment_delay?.probability || 35) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-slate-200 rounded-full h-3">
+                                            <div class="bg-amber-500 h-3 rounded-full" :style="'width: ' + (dashboard?.risk_analysis?.predictions?.enrollment_delay?.probability || 35) + '%'"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-sm mb-1">
+                                            <span class="text-slate-600">Amendment Required</span>
+                                            <span class="font-semibold" x-text="(dashboard?.risk_analysis?.predictions?.amendment_required?.probability || 65) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-slate-200 rounded-full h-3">
+                                            <div class="bg-violet-500 h-3 rounded-full" :style="'width: ' + (dashboard?.risk_analysis?.predictions?.amendment_required?.probability || 65) + '%'"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Key Risk Indicators -->
+                        <div class="bg-white border border-slate-200 rounded-2xl p-5 mb-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold text-navy-900 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    Key Risk Indicators
+                                </h3>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-4">
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 text-center">
+                                    <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Execution Risk</div>
+                                    <div class="text-2xl font-bold"
+                                        :class="{
+                                            'text-red-500': (dashboard?.risk_analysis?.execution_risk || 50) >= 60,
+                                            'text-amber-500': (dashboard?.risk_analysis?.execution_risk || 50) >= 40 && (dashboard?.risk_analysis?.execution_risk || 50) < 60,
+                                            'text-emerald-500': (dashboard?.risk_analysis?.execution_risk || 50) < 40
+                                        }"
+                                        x-text="(dashboard?.risk_analysis?.execution_risk || 50) + '%'"></div>
+                                    <div class="text-xs text-slate-500 mt-1">Based on protocol complexity</div>
+                                </div>
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 text-center">
+                                    <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Competition Level</div>
+                                    <div class="text-2xl font-bold"
+                                        :class="{
+                                            'text-red-500': dashboard?.risk_analysis?.competitive_landscape?.risk_level === 'high',
+                                            'text-amber-500': dashboard?.risk_analysis?.competitive_landscape?.risk_level === 'medium',
+                                            'text-emerald-500': dashboard?.risk_analysis?.competitive_landscape?.risk_level === 'low'
+                                        }"
+                                        x-text="dashboard?.risk_analysis?.competitive_landscape?.competing_count || 0"></div>
+                                    <div class="text-xs text-slate-500 mt-1">Recruiting competing trials</div>
+                                </div>
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 text-center">
+                                    <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Feasibility Score</div>
+                                    <div class="text-2xl font-bold"
+                                        :class="{
+                                            'text-emerald-500': (dashboard?.risk_analysis?.feasibility_score || 70) >= 70,
+                                            'text-amber-500': (dashboard?.risk_analysis?.feasibility_score || 70) >= 50 && (dashboard?.risk_analysis?.feasibility_score || 70) < 70,
+                                            'text-red-500': (dashboard?.risk_analysis?.feasibility_score || 70) < 50
+                                        }"
+                                        x-text="(dashboard?.risk_analysis?.feasibility_score || 70) + '%'"></div>
+                                    <div class="text-xs text-slate-500 mt-1">Likelihood of successful completion</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Matrix -->
+                        <div class="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+                            <h3 class="font-semibold text-navy-900 mb-4">Risk Matrix with Mitigations</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-600">Risk Factor</th>
+                                            <th class="px-4 py-3 text-center font-semibold text-slate-600">Prob</th>
+                                            <th class="px-4 py-3 text-center font-semibold text-slate-600">Impact</th>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-600">Mitigation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="risk in (dashboard?.risk_analysis?.risk_factors || [])" :key="risk.risk">
+                                            <tr class="border-t border-slate-100">
+                                                <td class="px-4 py-3">
+                                                    <div class="font-medium text-slate-800" x-text="risk.category"></div>
+                                                    <div class="text-sm text-slate-500" x-text="risk.risk"></div>
+                                                </td>
+                                                <td class="px-4 py-3 text-center font-semibold" x-text="risk.probability + '%'"></td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <span class="px-2 py-1 rounded-full text-xs font-medium"
+                                                        :class="{
+                                                            'bg-red-100 text-red-700': risk.impact === 'high',
+                                                            'bg-amber-100 text-amber-700': risk.impact === 'medium',
+                                                            'bg-emerald-100 text-emerald-700': risk.impact === 'low'
+                                                        }"
+                                                        x-text="risk.impact?.toUpperCase()"></span>
+                                                </td>
+                                                <td class="px-4 py-3 text-slate-600 text-sm" x-text="risk.mitigation"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Regulatory Risk -->
+                        <div class="bg-gradient-to-r from-violet-50 to-blue-50 border border-violet-200 rounded-2xl p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold text-violet-900">Regulatory Risk Assessment</h3>
+                                <span x-show="dashboard?.risk_analysis?.regulatory_risk?.therapeutic_context"
+                                    class="px-2 py-1 bg-violet-200 text-violet-700 rounded text-xs font-medium"
+                                    x-text="dashboard?.risk_analysis?.regulatory_risk?.therapeutic_context"></span>
+                            </div>
+                            <p class="text-violet-700 mb-4 font-medium" x-text="'Pathway: ' + (dashboard?.risk_analysis?.regulatory_risk?.pathway || 'Standard')"></p>
+                            <div class="space-y-3">
+                                <template x-for="item in (dashboard?.risk_analysis?.regulatory_risk?.assessments || [])" :key="item.item">
+                                    <div class="flex items-start gap-3">
+                                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs mt-0.5 flex-shrink-0 bg-emerald-200 text-emerald-700">&#10003;</span>
+                                        <div>
+                                            <span class="font-medium text-violet-800" x-text="item.item"></span>
+                                            <span class="mx-1 text-violet-400">-</span>
+                                            <span class="text-sm text-violet-600" x-text="item.note"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Button -->
+        <div class="mt-8 text-center">
+            <button @click="exportReport()" class="inline-flex items-center gap-2 px-6 py-3 bg-navy-900 hover:bg-navy-800 text-white font-semibold rounded-xl transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export Report (PDF)
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function dashboardApp() {
+    return {
+        results: null,
+        dashboard: null,
+        hasResults: false,
+        activeTab: 'overview',
+
+        // Sub-section navigation
+        designSection: 'optimization',
+        operationsSection: 'sites',
+
+        // Filters for similar trials
+        filterStatus: 'all',
+        filterPhase: 'all',
+        filterMinScore: 65,
+
+        get similarTrialsData() {
+            const enhanced = this.dashboard?.similar_trials_enhanced;
+            if (enhanced && enhanced.trials) {
+                return enhanced;
+            }
+            const trials = enhanced || this.results?.similar_trials || [];
+            return {
+                detected_therapeutic_area: 'General',
+                total_matched: trials.length,
+                showing: trials.length,
+                mechanism_groups: {},
+                trials: trials
+            };
+        },
+
+        get filteredTrials() {
+            let trials = this.similarTrialsData?.trials || [];
+
+            if (this.filterStatus !== 'all') {
+                trials = trials.filter(t => t.status === this.filterStatus);
+            }
+            if (this.filterPhase !== 'all') {
+                trials = trials.filter(t => t.phase?.includes(this.filterPhase.replace('PHASE', '')));
+            }
+            if (this.filterMinScore > 0) {
+                trials = trials.filter(t => (t.overall_score || t.overall_similarity || 0) >= this.filterMinScore);
+            }
+
+            return trials;
+        },
+
+        get sortedTopSites() {
+            const sites = this.dashboard?.site_intelligence?.top_sites || [];
+            return [...sites].sort((a, b) => {
+                const aIsUS = a.country === 'United States' || a.country === 'USA' || a.country === 'US';
+                const bIsUS = b.country === 'United States' || b.country === 'USA' || b.country === 'US';
+                if (aIsUS && !bIsUS) return -1;
+                if (!aIsUS && bIsUS) return 1;
+                return (b.similar_trials || 0) - (a.similar_trials || 0);
+            });
+        },
+
+        loadResults() {
+            const stored = localStorage.getItem('clinanalytica_results');
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
+                    this.results = data;
+                    this.dashboard = data.dashboard || null;
+                    this.hasResults = true;
+                } catch (e) {
+                    console.error('Failed to parse stored results:', e);
+                }
+            }
+        },
+
+        exportReport() {
+            alert('PDF export coming soon! For now, use your browser\'s print function (Ctrl/Cmd + P).');
+        }
+    }
+}
+</script>
+{% endblock %}

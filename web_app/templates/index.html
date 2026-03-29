@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+
+{% block title %}Analyze Protocol{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Animated gradient background */
+    .hero-gradient {
+        background: linear-gradient(-45deg, #f97316, #f59e0b, #3b82f6, #8b5cf6);
+        background-size: 400% 400%;
+        animation: gradient-bg 15s ease infinite;
+    }
+
+    @keyframes gradient-bg {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Floating particles */
+    .particle {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .particle-1 {
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(244, 89, 0, 0.15) 0%, transparent 70%);
+        top: -100px;
+        right: -50px;
+        animation: float 8s ease-in-out infinite;
+    }
+
+    .particle-2 {
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(49, 77, 216, 0.1) 0%, transparent 70%);
+        bottom: 50px;
+        left: -50px;
+        animation: float 10s ease-in-out infinite reverse;
+    }
+
+    .particle-3 {
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+        top: 40%;
+        right: 10%;
+        animation: float 12s ease-in-out infinite;
+    }
+
+    /* Stat card number animation */
+    .stat-number {
+        background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+    }
+
+    /* Module card shine effect */
+    .module-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .module-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.5s;
+    }
+
+    .module-card:hover::before {
+        left: 100%;
+    }
+
+    /* Pulse ring animation */
+    .pulse-ring {
+        animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-ring {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="protocolAnalyzer()" class="relative">
+
+    <!-- Floating Particles Background -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="particle particle-1"></div>
+        <div class="particle particle-2"></div>
+        <div class="particle particle-3"></div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
+
+        <!-- Hero Section -->
+        <div class="text-center mb-16">
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/30 rounded-full text-primary-600 dark:text-primary-400 text-sm font-medium mb-6 animate-fade-in-down">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+                </span>
+                Powered by Advanced AI
+            </div>
+
+            <h1 class="font-display text-4xl md:text-5xl lg:text-6xl font-extrabold text-navy-900 dark:text-white mb-10 animate-fade-in-up">
+                Clinical Trial
+                <span class="gradient-text-animated block mt-2">Protocol Intelligence</span>
+            </h1>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid lg:grid-cols-3 gap-8">
+
+            <!-- Protocol Input Panel -->
+            <div class="lg:col-span-2">
+                <div class="glass-card rounded-3xl overflow-hidden">
+                    <!-- Header with gradient -->
+                    <div class="bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-600 px-6 py-5 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"30\" height=\"30\" viewBox=\"0 0 30 30\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h30v30H0z\" fill=\"none\"/%3E%3Ccircle cx=\"15\" cy=\"15\" r=\"1\" fill=\"rgba(255,255,255,0.1)\"/%3E%3C/svg%3E')] opacity-50"></div>
+                        <h2 class="text-white font-display font-bold text-xl flex items-center gap-3 relative">
+                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            Enter Your Protocol
+                        </h2>
+                        <p class="text-white/80 text-sm mt-2 relative">Paste text or upload a PDF for comprehensive analysis</p>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="p-6 dark:bg-navy-800/50">
+                        <!-- Input Type Tabs -->
+                        <div class="flex gap-2 mb-4 p-1 bg-slate-100 dark:bg-navy-700 rounded-xl">
+                            <button
+                                @click="inputMode = 'text'"
+                                :class="inputMode === 'text' ? 'bg-white dark:bg-navy-600 shadow-md text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                                class="flex-1 px-4 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Paste Text
+                            </button>
+                            <button
+                                @click="inputMode = 'pdf'"
+                                :class="inputMode === 'pdf' ? 'bg-white dark:bg-navy-600 shadow-md text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'"
+                                class="flex-1 px-4 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                Upload PDF
+                            </button>
+                        </div>
+
+                        <!-- Text Input -->
+                        <div x-show="inputMode === 'text'" x-transition>
+                            <textarea
+                                x-model="protocolText"
+                                placeholder="Paste your complete protocol synopsis here...
+
+Include:
+- Study title and condition/indication
+- Phase (1, 2, 3, or 4)
+- Target enrollment number
+- Primary and secondary endpoints
+- Key inclusion/exclusion criteria
+- Study duration
+- Intervention and comparator details
+- Number of planned sites
+
+The more detail you provide, the better the analysis."
+                                class="w-full h-72 p-4 border-2 border-slate-200 dark:border-navy-600 rounded-2xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all resize-none text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-navy-700"
+                                :disabled="isLoading"
+                            ></textarea>
+                        </div>
+
+                        <!-- PDF Upload -->
+                        <div x-show="inputMode === 'pdf'" x-transition>
+                            <div
+                                class="w-full h-72 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all"
+                                :class="{
+                                    'border-primary-500 bg-primary-50 dark:bg-primary-900/20': isDragging,
+                                    'border-slate-300 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500': !isDragging
+                                }"
+                                @dragover.prevent="isDragging = true"
+                                @dragleave.prevent="isDragging = false"
+                                @drop.prevent="handleFileDrop($event)"
+                            >
+                                <template x-if="!uploadedFile">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-navy-600 dark:to-navy-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                            </svg>
+                                        </div>
+                                        <p class="text-slate-600 dark:text-slate-300 font-medium mb-2">Drag and drop your protocol PDF here</p>
+                                        <p class="text-slate-400 text-sm mb-4">or</p>
+                                        <label class="cursor-pointer px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-medium text-sm transition-all shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 btn-ripple">
+                                            Browse Files
+                                            <input type="file" accept=".pdf" class="hidden" @change="handleFileSelect($event)">
+                                        </label>
+                                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-4">Supported: PDF files up to 10MB</p>
+                                    </div>
+                                </template>
+                                <template x-if="uploadedFile">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <svg class="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <p class="text-slate-700 dark:text-slate-200 font-semibold mb-1" x-text="uploadedFile.name"></p>
+                                        <p class="text-slate-400 text-sm mb-4" x-text="formatFileSize(uploadedFile.size)"></p>
+                                        <button @click="uploadedFile = null; pdfText = ''" class="text-red-500 hover:text-red-600 text-sm font-medium transition-colors">
+                                            Remove file
+                                        </button>
+                                        <div x-show="pdfText" class="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-sm text-emerald-700 dark:text-emerald-400">
+                                            <span x-text="pdfText.length.toLocaleString()"></span> characters extracted
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Settings Toggle -->
+                        <div class="mt-4">
+                            <button
+                                @click="showSettings = !showSettings"
+                                class="text-sm text-slate-500 dark:text-slate-400 hover:text-primary-500 dark:hover:text-primary-400 flex items-center gap-1 transition-colors"
+                            >
+                                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': showSettings }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                                Advanced Settings
+                            </button>
+
+                            <div x-show="showSettings" x-collapse class="mt-4 p-4 bg-slate-50 dark:bg-navy-700 rounded-xl">
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Candidates</label>
+                                        <input type="number" x-model="maxSimilar" min="100" max="1000" class="w-full px-3 py-2 border border-slate-200 dark:border-navy-600 rounded-lg text-sm bg-white dark:bg-navy-600 text-slate-700 dark:text-slate-200">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Min Similarity %</label>
+                                        <input type="number" x-model="minSimilarity" min="20" max="80" class="w-full px-3 py-2 border border-slate-200 dark:border-navy-600 rounded-lg text-sm bg-white dark:bg-navy-600 text-slate-700 dark:text-slate-200">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Top N for AI</label>
+                                        <input type="number" x-model="rankTopN" min="50" max="200" class="w-full px-3 py-2 border border-slate-200 dark:border-navy-600 rounded-lg text-sm bg-white dark:bg-navy-600 text-slate-700 dark:text-slate-200">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analyze Button -->
+                        <button
+                            @click="analyzeProtocol()"
+                            :disabled="!canAnalyze"
+                            class="w-full mt-6 py-4 px-6 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 disabled:from-slate-300 disabled:to-slate-400 dark:disabled:from-navy-600 dark:disabled:to-navy-700 text-white font-display font-bold text-lg rounded-2xl shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 transition-all disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2 btn-glow btn-ripple"
+                        >
+                            <template x-if="!isLoading && !isProcessingPdf">
+                                <span class="flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                    </svg>
+                                    Analyze Protocol
+                                </span>
+                            </template>
+                            <template x-if="isProcessingPdf">
+                                <span class="flex items-center gap-2">
+                                    <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Processing PDF...
+                                </span>
+                            </template>
+                            <template x-if="isLoading && !isProcessingPdf">
+                                <span class="flex items-center gap-2">
+                                    <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Analyzing with AI...
+                                </span>
+                            </template>
+                        </button>
+
+                        <p class="text-center text-sm text-slate-400 dark:text-slate-500 mt-3">
+                            <span x-text="effectiveText.length.toLocaleString()"></span> characters
+                            <span x-show="effectiveText.length < 100" class="text-amber-500">(minimum 100 required)</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div x-show="error" x-transition class="mt-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl text-red-700 dark:text-red-400">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span x-text="error"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Panel -->
+            <div class="space-y-4">
+                <h3 class="font-display font-bold text-lg text-navy-900 dark:text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                    </svg>
+                    Dashboard Modules
+                </h3>
+
+                <!-- Module Cards - Consolidated 4 Tabs -->
+                <div class="glass-card module-card rounded-2xl p-4 card-lift group cursor-default">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/50 dark:to-primary-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-navy-900 dark:text-white">Overview</h4>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Executive summary with key metrics, risks & recommendations</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card module-card rounded-2xl p-4 card-lift group cursor-default">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-violet-100 to-violet-200 dark:from-violet-900/50 dark:to-violet-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg class="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-navy-900 dark:text-white">Competitive Landscape</h4>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Similar trials analysis & sponsor track record</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card module-card rounded-2xl p-4 card-lift group cursor-default">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-navy-900 dark:text-white">Protocol Design</h4>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Optimization, eligibility, endpoints & amendment risk</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card module-card rounded-2xl p-4 card-lift group cursor-default">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-navy-900 dark:text-white">Operations</h4>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Site intelligence, enrollment forecast & risk analysis</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div x-show="results" x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 transform translate-y-8" x-transition:enter-end="opacity-100 transform translate-y-0" class="mt-12">
+            <div class="glass-card rounded-3xl overflow-hidden">
+                <!-- Results Header -->
+                <div class="bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 px-6 py-5 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"30\" height=\"30\" viewBox=\"0 0 30 30\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h30v30H0z\" fill=\"none\"/%3E%3Ccircle cx=\"15\" cy=\"15\" r=\"1\" fill=\"rgba(255,255,255,0.1)\"/%3E%3C/svg%3E')] opacity-50"></div>
+                    <h2 class="text-white font-display font-bold text-xl flex items-center gap-3 relative">
+                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        Analysis Complete
+                    </h2>
+                    <p class="text-white/80 text-sm mt-2 relative">Your protocol has been analyzed against similar historical trials</p>
+                </div>
+
+                <!-- Results Body -->
+                <div class="p-6 dark:bg-navy-800/50">
+                    <!-- Protocol Summary -->
+                    <div x-show="results?.extracted_protocol" class="mb-8">
+                        <h3 class="font-display font-bold text-lg text-navy-900 dark:text-white mb-4">Extracted Protocol Summary</h3>
+                        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-slate-50 dark:bg-navy-700 rounded-xl p-4">
+                                <div class="text-sm text-slate-500 dark:text-slate-400 mb-1">Condition</div>
+                                <div class="font-semibold text-navy-900 dark:text-white" x-text="results?.extracted_protocol?.condition || 'N/A'"></div>
+                            </div>
+                            <div class="bg-slate-50 dark:bg-navy-700 rounded-xl p-4">
+                                <div class="text-sm text-slate-500 dark:text-slate-400 mb-1">Phase</div>
+                                <div class="font-semibold text-navy-900 dark:text-white" x-text="results?.extracted_protocol?.phase || 'N/A'"></div>
+                            </div>
+                            <div class="bg-slate-50 dark:bg-navy-700 rounded-xl p-4">
+                                <div class="text-sm text-slate-500 dark:text-slate-400 mb-1">Target Enrollment</div>
+                                <div class="font-semibold text-navy-900 dark:text-white" x-text="results?.extracted_protocol?.target_enrollment?.toLocaleString() || 'N/A'"></div>
+                            </div>
+                            <div class="bg-slate-50 dark:bg-navy-700 rounded-xl p-4">
+                                <div class="text-sm text-slate-500 dark:text-slate-400 mb-1">Intervention</div>
+                                <div class="font-semibold text-navy-900 dark:text-white" x-text="results?.extracted_protocol?.intervention_type || results?.extracted_protocol?.drug_name || 'N/A'"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Similar Trials Preview -->
+                    <div x-show="results?.similar_trials?.length > 0" class="mb-8">
+                        <h3 class="font-display font-bold text-lg text-navy-900 dark:text-white mb-4">
+                            Top Similar Trials
+                            <span class="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2" x-text="'(' + results?.similar_trials?.length + ' found)'"></span>
+                        </h3>
+                        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-navy-600">
+                            <table class="w-full text-sm">
+                                <thead class="bg-slate-50 dark:bg-navy-700">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">NCT ID</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Title</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Phase</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-navy-600">
+                                    <template x-for="trial in (results?.similar_trials || []).slice(0, 5)" :key="trial.nct_id">
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-navy-700/50 transition-colors">
+                                            <td class="px-4 py-3">
+                                                <a :href="'https://clinicaltrials.gov/study/' + trial.nct_id" target="_blank" class="text-primary-600 dark:text-primary-400 hover:underline font-medium" x-text="trial.nct_id"></a>
+                                            </td>
+                                            <td class="px-4 py-3 max-w-md text-slate-700 dark:text-slate-300">
+                                                <span class="line-clamp-2" x-text="trial.title"></span>
+                                            </td>
+                                            <td class="px-4 py-3 text-slate-600 dark:text-slate-400" x-text="trial.phase"></td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2.5 py-1 rounded-full text-xs font-medium"
+                                                    :class="{
+                                                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400': trial.status === 'COMPLETED',
+                                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400': trial.status === 'RECRUITING',
+                                                        'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-400': trial.status !== 'COMPLETED' && trial.status !== 'RECRUITING'
+                                                    }"
+                                                    x-text="trial.status">
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-16 h-2 bg-slate-200 dark:bg-navy-600 rounded-full overflow-hidden">
+                                                        <div class="h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full" :style="'width: ' + (trial.overall_score || trial.similarity * 100) + '%'"></div>
+                                                    </div>
+                                                    <span class="font-semibold text-slate-700 dark:text-slate-300" x-text="Math.round(trial.overall_score || trial.similarity * 100) + '%'"></span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- View Full Dashboard Button -->
+                    <div class="text-center">
+                        <a href="/dashboard" class="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white font-display font-bold text-lg rounded-2xl transition-all shadow-lg shadow-secondary-500/30 hover:shadow-xl hover:shadow-secondary-500/40 btn-glow btn-ripple">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            View Full Dashboard
+                        </a>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-3">See detailed analysis, charts, and recommendations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function protocolAnalyzer() {
+    return {
+        protocolText: '',
+        inputMode: 'text',
+        isDragging: false,
+        uploadedFile: null,
+        pdfText: '',
+        isLoading: false,
+        isProcessingPdf: false,
+        showSettings: false,
+        maxSimilar: 500,
+        minSimilarity: 40,
+        rankTopN: 100,
+        results: null,
+        error: null,
+
+        get effectiveText() {
+            return this.inputMode === 'pdf' ? this.pdfText : this.protocolText;
+        },
+
+        get canAnalyze() {
+            return this.effectiveText.length >= 100 && !this.isLoading && !this.isProcessingPdf;
+        },
+
+        formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+
+        async handleFileDrop(event) {
+            this.isDragging = false;
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                await this.processFile(files[0]);
+            }
+        },
+
+        async handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                await this.processFile(files[0]);
+            }
+        },
+
+        async processFile(file) {
+            if (file.type !== 'application/pdf') {
+                this.error = 'Please upload a PDF file.';
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                this.error = 'File size must be less than 10MB.';
+                return;
+            }
+
+            this.error = null;
+            this.uploadedFile = file;
+            this.isProcessingPdf = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/upload-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.pdfText = data.text;
+                } else {
+                    this.error = data.error || 'Failed to process PDF.';
+                    this.uploadedFile = null;
+                }
+            } catch (err) {
+                this.error = 'Failed to upload PDF. Please try again.';
+                this.uploadedFile = null;
+                console.error(err);
+            } finally {
+                this.isProcessingPdf = false;
+            }
+        },
+
+        async analyzeProtocol() {
+            if (!this.canAnalyze) return;
+
+            this.isLoading = true;
+            this.error = null;
+            this.results = null;
+
+            const textToAnalyze = this.effectiveText;
+
+            try {
+                const response = await fetch('/api/analyze-v2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        protocol_text: textToAnalyze,
+                        max_similar: this.maxSimilar,
+                        min_similarity: this.minSimilarity / 100,
+                        rank_top_n: this.rankTopN
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.results = data;
+                    localStorage.setItem('clinanalytica_results', JSON.stringify(data));
+                    localStorage.setItem('clinanalytica_protocol', textToAnalyze);
+                    if (data.dashboard) {
+                        localStorage.setItem('clinanalytica_dashboard', JSON.stringify(data.dashboard));
+                    }
+
+                    // Smooth scroll to results
+                    setTimeout(() => {
+                        document.querySelector('[x-show="results"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                } else {
+                    this.error = data.error || 'Analysis failed. Please try again.';
+                }
+            } catch (err) {
+                this.error = 'Network error. Please check your connection.';
+                console.error(err);
+            } finally {
+                this.isLoading = false;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

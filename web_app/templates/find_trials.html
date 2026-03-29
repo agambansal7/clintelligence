@@ -1,0 +1,1018 @@
+{% extends "base.html" %}
+
+{% block title %}Find Clinical Trials{% endblock %}
+
+{% block content %}
+<div x-data="trialFinder()" @load-sites.window="loadAllSites($event.detail.nctId)" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Hero Section -->
+    <div class="text-center mb-10 animate-fade-in-up">
+        <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+        <h1 class="font-display text-3xl md:text-4xl font-extrabold text-navy-900 mb-3">
+            Find Clinical Trials <span class="gradient-text">For You</span>
+        </h1>
+        <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+            Search {{ recruiting_count|default(95000)|int }} actively recruiting trials.
+            Answer a few questions to find trials you may qualify for.
+        </p>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="flex items-center justify-center gap-4 mb-8">
+        <div class="flex items-center gap-2">
+            <div :class="step >= 1 ? 'bg-primary-500 text-white' : 'bg-slate-200 text-slate-500'" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors">1</div>
+            <span class="text-sm font-medium" :class="step >= 1 ? 'text-primary-600' : 'text-slate-400'">Search</span>
+        </div>
+        <div class="w-12 h-0.5 bg-slate-200"><div class="h-full bg-primary-500 transition-all" :style="step >= 2 ? 'width: 100%' : 'width: 0%'"></div></div>
+        <div class="flex items-center gap-2">
+            <div :class="step >= 2 ? 'bg-primary-500 text-white' : 'bg-slate-200 text-slate-500'" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors">2</div>
+            <span class="text-sm font-medium" :class="step >= 2 ? 'text-primary-600' : 'text-slate-400'">Questions</span>
+        </div>
+        <div class="w-12 h-0.5 bg-slate-200"><div class="h-full bg-primary-500 transition-all" :style="step >= 3 ? 'width: 100%' : 'width: 0%'"></div></div>
+        <div class="flex items-center gap-2">
+            <div :class="step >= 3 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'" class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors">3</div>
+            <span class="text-sm font-medium" :class="step >= 3 ? 'text-emerald-600' : 'text-slate-400'">Results</span>
+        </div>
+    </div>
+
+    <!-- Step 1: Condition Search -->
+    <div x-show="step === 1" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+        <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 p-8">
+            <h2 class="font-display text-xl font-bold text-navy-900 mb-6">What condition are you looking for trials for?</h2>
+
+            <div class="relative">
+                <input
+                    type="text"
+                    x-model="condition"
+                    @input="fetchAutocomplete()"
+                    @keyup.enter="searchTrials()"
+                    @focus="showAutocomplete = true"
+                    @blur="setTimeout(() => showAutocomplete = false, 200)"
+                    placeholder="e.g., Type 2 Diabetes, Breast Cancer, Rheumatoid Arthritis..."
+                    class="w-full px-5 py-4 text-lg border-2 border-slate-200 rounded-2xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all"
+                    :disabled="isLoading"
+                    autocomplete="off"
+                >
+                <!-- Autocomplete dropdown -->
+                <div x-show="showAutocomplete && autocompleteSuggestions.length > 0"
+                     x-transition
+                     class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                    <template x-for="suggestion in autocompleteSuggestions" :key="suggestion">
+                        <button
+                            @mousedown.prevent="condition = suggestion; showAutocomplete = false; searchTrials()"
+                            class="w-full px-4 py-2 text-left hover:bg-primary-50 text-slate-700 text-sm"
+                            x-text="suggestion"
+                        ></button>
+                    </template>
+                </div>
+            </div>
+
+            <p class="mt-4 text-sm text-slate-500">
+                Enter a disease, condition, or treatment you're interested in. You can also search by drug name or intervention type.
+            </p>
+
+            <!-- Location Section - NEW -->
+            <div class="mt-6 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <h3 class="font-semibold text-blue-900">Find Trials Near You</h3>
+                    <span class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">Optional</span>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-blue-800 mb-1">Your ZIP Code</label>
+                        <input
+                            type="text"
+                            x-model="patientZipCode"
+                            placeholder="e.g., 10001"
+                            maxlength="5"
+                            pattern="[0-9]{5}"
+                            class="w-full px-4 py-2 border border-blue-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-200 bg-white"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm text-blue-800 mb-1">Max Distance</label>
+                        <select x-model="maxDistanceMiles" class="w-full px-4 py-2 border border-blue-200 rounded-lg focus:border-blue-400 bg-white">
+                            <option value="25">Within 25 miles</option>
+                            <option value="50">Within 50 miles</option>
+                            <option value="100" selected>Within 100 miles</option>
+                            <option value="250">Within 250 miles</option>
+                            <option value="500">Within 500 miles</option>
+                            <option value="">Any distance</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="text-xs text-blue-600 mt-2">
+                    <svg class="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Enter your ZIP code to find trials at hospitals and research centers near you.
+                </p>
+            </div>
+
+            <!-- Search Button -->
+            <div class="mt-6">
+                <button
+                    @click="searchTrials()"
+                    :disabled="!condition.trim() || isLoading"
+                    class="w-full py-4 px-6 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 disabled:from-slate-300 disabled:to-slate-400 text-white font-display font-bold text-lg rounded-2xl shadow-lg shadow-primary-500/30 transition-all disabled:shadow-none flex items-center justify-center gap-2"
+                >
+                    <span x-show="!isLoading" class="flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Search Trials
+                    </span>
+                    <span x-show="isLoading" class="flex items-center gap-2">
+                        <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Searching...
+                    </span>
+                </button>
+            </div>
+
+            <!-- Popular Conditions - Dynamic -->
+            <div class="mt-6">
+                <p class="text-sm font-medium text-slate-600 mb-3">Popular searches:</p>
+                <div class="flex flex-wrap gap-2">
+                    <template x-if="popularConditions.length === 0">
+                        <div class="flex gap-2">
+                            <button @click="condition = 'Type 2 Diabetes'; searchTrials()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition-colors">Type 2 Diabetes</button>
+                            <button @click="condition = 'Breast Cancer'; searchTrials()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition-colors">Breast Cancer</button>
+                            <button @click="condition = 'Rheumatoid Arthritis'; searchTrials()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition-colors">Rheumatoid Arthritis</button>
+                        </div>
+                    </template>
+                    <template x-for="pop in popularConditions.slice(0, 8)" :key="pop.name">
+                        <button
+                            @click="condition = pop.name; searchTrials()"
+                            class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                        >
+                            <span x-text="pop.name"></span>
+                            <span class="text-xs text-slate-400" x-text="'(' + pop.trial_count + ')'"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Screening Questions -->
+    <div x-show="step === 2" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+        <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-white font-display font-bold text-lg">Screening Questions</h2>
+                        <p class="text-white/80 text-sm mt-1">
+                            Found <span x-text="trialCount" class="font-semibold"></span> trials for "<span x-text="condition"></span>"
+                            <span x-show="patientLocation" class="ml-1">
+                                near ZIP <span x-text="patientZipCode" class="font-semibold"></span>
+                            </span>
+                        </p>
+                        <!-- Distance Bands Summary -->
+                        <div x-show="distanceBands" class="flex gap-3 mt-2 text-xs text-white/70">
+                            <span x-show="distanceBands?.within_25_miles">
+                                <span x-text="distanceBands?.within_25_miles" class="font-semibold text-white"></span> within 25 mi
+                            </span>
+                            <span x-show="distanceBands?.within_50_miles">
+                                <span x-text="distanceBands?.within_50_miles" class="font-semibold text-white"></span> within 50 mi
+                            </span>
+                            <span x-show="distanceBands?.within_100_miles">
+                                <span x-text="distanceBands?.within_100_miles" class="font-semibold text-white"></span> within 100 mi
+                            </span>
+                        </div>
+                    </div>
+                    <button @click="step = 1" class="text-white/80 hover:text-white text-sm flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        Change search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Trial Insights Panel -->
+            <div x-show="trialInsights" class="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-200">
+                <div class="flex flex-wrap items-center gap-4 text-sm">
+                    <div x-show="trialInsights?.detected_therapeutic_area">
+                        <span class="text-slate-500">Area:</span>
+                        <span class="ml-1 px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full font-medium" x-text="trialInsights?.detected_therapeutic_area"></span>
+                    </div>
+                    <div x-show="trialInsights?.insights?.intervention_types">
+                        <span class="text-slate-500">Treatments:</span>
+                        <template x-for="(count, type) in Object.entries(trialInsights?.insights?.intervention_types || {}).slice(0, 3)" :key="type">
+                            <span class="ml-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs" x-text="type + ' (' + count + ')'"></span>
+                        </template>
+                    </div>
+                    <div x-show="trialInsights?.insights?.avg_enrollment">
+                        <span class="text-slate-500">Avg size:</span>
+                        <span class="ml-1 font-medium text-slate-700" x-text="trialInsights?.insights?.avg_enrollment + ' patients'"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions -->
+            <div class="p-6">
+                <p class="text-slate-600 mb-6">Please answer these questions to help us find trials you may qualify for:</p>
+
+                <div class="space-y-6">
+                    <template x-for="(question, index) in questions" :key="question.id">
+                        <div class="p-4 bg-slate-50 rounded-2xl">
+                            <label class="block font-medium text-navy-900 mb-2">
+                                <span x-text="(index + 1) + '. ' + question.question"></span>
+                                <span x-show="question.required" class="text-red-500">*</span>
+                            </label>
+                            <p x-show="question.help_text" class="text-sm text-slate-500 mb-3" x-text="question.help_text"></p>
+
+                            <!-- Number input -->
+                            <template x-if="question.type === 'number'">
+                                <input
+                                    type="number"
+                                    x-model="answers[question.id]"
+                                    class="w-full max-w-xs px-4 py-2 border border-slate-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                                    placeholder="Enter a number"
+                                >
+                            </template>
+
+                            <!-- Text input -->
+                            <template x-if="question.type === 'text'">
+                                <input
+                                    type="text"
+                                    x-model="answers[question.id]"
+                                    class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                                    placeholder="Type your answer"
+                                >
+                            </template>
+
+                            <!-- Single choice -->
+                            <template x-if="question.type === 'single_choice' || question.type === 'boolean'">
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="option in question.options" :key="option">
+                                        <button
+                                            @click="answers[question.id] = option"
+                                            :class="answers[question.id] === option ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-700 border-slate-200 hover:border-primary-300'"
+                                            class="px-4 py-2 border-2 rounded-lg font-medium transition-colors"
+                                            x-text="option"
+                                        ></button>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Multi choice -->
+                            <template x-if="question.type === 'multi_choice'">
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="option in question.options" :key="option">
+                                        <button
+                                            @click="toggleMultiChoice(question.id, option)"
+                                            :class="(answers[question.id] || []).includes(option) ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-700 border-slate-200 hover:border-primary-300'"
+                                            class="px-4 py-2 border-2 rounded-lg font-medium transition-colors"
+                                            x-text="option"
+                                        ></button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="mt-8">
+                    <button
+                        @click="findMatches()"
+                        :disabled="!canSubmit || isLoading"
+                        class="w-full py-4 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 disabled:from-slate-300 disabled:to-slate-400 text-white font-display font-bold text-lg rounded-2xl shadow-lg shadow-emerald-500/30 transition-all disabled:shadow-none"
+                    >
+                        <span x-show="!isLoading" class="flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            Find Matching Trials
+                        </span>
+                        <span x-show="isLoading" class="flex items-center justify-center gap-2">
+                            <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            Finding your matches...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Results -->
+    <div x-show="step === 3" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0">
+
+        <!-- Results Header -->
+        <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl p-6 mb-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-display text-2xl font-bold">Your Matching Trials</h2>
+                    <p class="text-emerald-100 mt-1">
+                        Found <span x-text="filteredMatches.length" class="font-bold"></span> potential matches for "<span x-text="condition"></span>"
+                        <span x-show="filteredMatches.length !== matches.length" class="text-emerald-200">
+                            (filtered from <span x-text="matches.length"></span>)
+                        </span>
+                    </p>
+                </div>
+                <button @click="startOver()" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
+                    New Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Location Summary (if patient provided location) -->
+        <div x-show="patientLocation" class="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-sm text-blue-800">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span>Showing trials within <strong x-text="maxDistanceMiles || 'any distance of'"></strong> miles of ZIP <strong x-text="patientZipCode"></strong></span>
+            </div>
+            <button @click="patientZipCode = ''; patientLocation = null; findMatches()" class="text-xs text-blue-600 hover:underline">Clear location filter</button>
+        </div>
+
+        <!-- Result Filters -->
+        <div class="flex flex-wrap gap-3 mb-6 p-4 bg-slate-50 rounded-xl">
+            <select x-model="resultFilterPhase" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="all">All Phases</option>
+                <option value="PHASE1">Phase 1</option>
+                <option value="PHASE2">Phase 2</option>
+                <option value="PHASE3">Phase 3</option>
+                <option value="PHASE4">Phase 4</option>
+            </select>
+            <select x-model="resultFilterMatchLevel" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="all">All Match Levels</option>
+                <option value="excellent">Excellent Match (90%+)</option>
+                <option value="good">Good Match (70%+)</option>
+                <option value="possible">Possible Match (50%+)</option>
+            </select>
+            <select x-model="resultSortBy" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="score">Sort by Match Score</option>
+                <option value="distance">Sort by Distance</option>
+                <option value="enrollment">Sort by Trial Size</option>
+                <option value="phase">Sort by Phase</option>
+            </select>
+            <select x-show="patientLocation" x-model="resultFilterDistance" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="all">Any Distance</option>
+                <option value="25">Within 25 miles</option>
+                <option value="50">Within 50 miles</option>
+                <option value="100">Within 100 miles</option>
+            </select>
+        </div>
+
+        <!-- No Matches -->
+        <div x-show="matches.length === 0" class="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 text-center">
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <h3 class="font-display text-xl font-bold text-navy-900 mb-2">No Matching Trials Found</h3>
+            <p class="text-slate-500 mb-4">We couldn't find trials matching your criteria. Try broadening your search or checking back later.</p>
+
+            <!-- Related Conditions Suggestions -->
+            <div x-show="relatedConditions.length > 0" class="mt-6 p-4 bg-blue-50 rounded-xl text-left">
+                <p class="text-sm font-medium text-blue-800 mb-3">You might also be interested in:</p>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="related in relatedConditions" :key="related">
+                        <button
+                            @click="condition = related; step = 1; searchTrials()"
+                            class="px-3 py-1.5 bg-white hover:bg-blue-100 text-blue-700 rounded-lg text-sm border border-blue-200 transition-colors"
+                            x-text="related"
+                        ></button>
+                    </template>
+                </div>
+            </div>
+
+            <button @click="startOver()" class="mt-4 px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors">
+                Try Another Search
+            </button>
+        </div>
+
+        <!-- Match Cards -->
+        <div class="space-y-4">
+            <template x-for="match in filteredMatches" :key="match.nct_id">
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                    <!-- Match Header -->
+                    <div class="p-5 border-b border-slate-100">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span
+                                        class="px-3 py-1 rounded-full text-sm font-bold"
+                                        :class="{
+                                            'bg-emerald-100 text-emerald-700': match.match_level === 'excellent',
+                                            'bg-blue-100 text-blue-700': match.match_level === 'good',
+                                            'bg-amber-100 text-amber-700': match.match_level === 'possible',
+                                            'bg-slate-100 text-slate-700': match.match_level === 'unlikely'
+                                        }"
+                                        x-text="match.match_score + '% Match'"
+                                    ></span>
+                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium" x-text="match.phase || 'Phase N/A'"></span>
+                                    <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-medium" x-text="match.status"></span>
+                                </div>
+                                <h3 class="font-display font-bold text-navy-900" x-text="match.title"></h3>
+                                <a :href="'https://clinicaltrials.gov/study/' + match.nct_id" target="_blank" class="text-sm text-primary-600 hover:underline" x-text="match.nct_id"></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Match Details -->
+                    <div class="p-5" x-data="{ expanded: false }">
+                        <!-- Summary -->
+                        <p class="text-slate-600 mb-4" x-text="match.summary"></p>
+
+                        <!-- Criteria Preview -->
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <!-- Met Criteria -->
+                            <div x-show="match.criteria_met.length > 0">
+                                <h4 class="text-sm font-semibold text-emerald-700 mb-2 flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Criteria You Meet
+                                </h4>
+                                <ul class="space-y-1">
+                                    <template x-for="c in match.criteria_met.slice(0, expanded ? 100 : 3)" :key="c.criterion">
+                                        <li class="text-sm text-slate-600 flex items-start gap-2">
+                                            <span class="text-emerald-500 mt-0.5">+</span>
+                                            <span x-text="c.explanation"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <!-- Not Met / Unknown -->
+                            <div x-show="match.criteria_not_met.length > 0 || match.criteria_unknown.length > 0">
+                                <template x-if="match.criteria_not_met.length > 0">
+                                    <div class="mb-3">
+                                        <h4 class="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                            Potential Issues
+                                        </h4>
+                                        <ul class="space-y-1">
+                                            <template x-for="c in match.criteria_not_met" :key="c.criterion">
+                                                <li class="text-sm text-slate-600 flex items-start gap-2">
+                                                    <span class="text-red-500 mt-0.5">-</span>
+                                                    <span x-text="c.explanation"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                                <template x-if="match.criteria_unknown.length > 0 && expanded">
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Needs Verification
+                                        </h4>
+                                        <ul class="space-y-1">
+                                            <template x-for="c in match.criteria_unknown" :key="c.criterion">
+                                                <li class="text-sm text-slate-600 flex items-start gap-2">
+                                                    <span class="text-amber-500 mt-0.5">?</span>
+                                                    <span x-text="c.explanation"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Expand/Collapse -->
+                        <button
+                            @click="expanded = !expanded"
+                            class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                            x-text="expanded ? 'Show less' : 'Show more details'"
+                        ></button>
+
+                        <!-- Trial Sites Section - Enhanced -->
+                        <div class="mt-4" x-data="{ showAllSites: false, loadingSites: false, allSites: [] }">
+                            <!-- Nearest Site Summary -->
+                            <div x-show="match.nearest_site" class="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            </svg>
+                                            <span x-show="match.distance_miles">Nearest Site</span>
+                                            <span x-show="!match.distance_miles">Study Site</span>
+                                        </h4>
+                                        <div class="text-sm">
+                                            <p class="font-semibold text-blue-900" x-text="match.nearest_site?.facility_name || 'Research Center'"></p>
+                                            <p class="text-blue-700" x-text="[match.nearest_site?.city, match.nearest_site?.state, match.nearest_site?.country].filter(Boolean).join(', ')"></p>
+                                        </div>
+                                    </div>
+                                    <div x-show="match.distance_miles" class="text-right">
+                                        <div class="text-2xl font-bold text-blue-600" x-text="match.distance_miles"></div>
+                                        <div class="text-xs text-blue-500">miles away</div>
+                                    </div>
+                                </div>
+
+                                <!-- Contact Information -->
+                                <div class="mt-3 pt-3 border-t border-blue-200">
+                                    <p class="text-xs font-medium text-blue-800 mb-2">Contact Information:</p>
+                                    <div class="flex flex-wrap gap-3">
+                                        <a x-show="match.nearest_site?.contact_phone"
+                                           :href="'tel:' + match.nearest_site?.contact_phone"
+                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-50 border border-blue-200 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                            </svg>
+                                            <span x-text="match.nearest_site?.contact_phone"></span>
+                                        </a>
+                                        <a x-show="match.nearest_site?.contact_email"
+                                           :href="'mailto:' + match.nearest_site?.contact_email"
+                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-50 border border-blue-200 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                            </svg>
+                                            Email Site
+                                        </a>
+                                        <a x-show="match.nearest_site?.directions_url"
+                                           :href="match.nearest_site?.directions_url"
+                                           target="_blank"
+                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                                            </svg>
+                                            Get Directions
+                                        </a>
+                                    </div>
+                                    <p x-show="match.nearest_site?.contact_name" class="mt-2 text-xs text-blue-600">
+                                        Contact: <span x-text="match.nearest_site?.contact_name"></span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- View All Sites Button -->
+                            <div x-show="match.total_sites > 1" class="mt-3">
+                                <button
+                                    @click="showAllSites = !showAllSites; if(showAllSites && (!match.all_sites || match.all_sites.length <= 1)) { $dispatch('load-sites', { nctId: match.nct_id }) }"
+                                    class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                    <span x-text="showAllSites ? 'Hide Other Sites' : 'View All ' + match.total_sites + ' Study Sites'"></span>
+                                    <svg :class="showAllSites ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+
+                                <!-- All Sites List -->
+                                <div x-show="showAllSites" x-transition class="mt-3 space-y-2 max-h-96 overflow-y-auto">
+                                    <template x-for="(site, idx) in (match.all_sites || [])" :key="idx">
+                                        <div x-show="idx > 0" class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                            <div class="flex items-start justify-between">
+                                                <div>
+                                                    <p class="font-medium text-slate-800 text-sm" x-text="site.facility_name || 'Study Site'"></p>
+                                                    <p class="text-xs text-slate-600" x-text="[site.city, site.state, site.country].filter(Boolean).join(', ')"></p>
+                                                </div>
+                                                <div x-show="site.distance_miles" class="text-right">
+                                                    <span class="text-sm font-semibold text-slate-700" x-text="site.distance_miles + ' mi'"></span>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                <a x-show="site.contact_phone"
+                                                   :href="'tel:' + site.contact_phone"
+                                                   class="text-xs text-primary-600 hover:underline flex items-center gap-1">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                                    </svg>
+                                                    <span x-text="site.contact_phone"></span>
+                                                </a>
+                                                <a x-show="site.directions_url"
+                                                   :href="site.directions_url"
+                                                   target="_blank"
+                                                   class="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                                                    </svg>
+                                                    Directions
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- No Sites Message -->
+                            <div x-show="!match.nearest_site && (!match.all_sites || match.all_sites.length === 0)" class="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                                <p class="text-sm text-amber-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    Site information not available. Check ClinicalTrials.gov for study locations.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="mt-4 flex flex-wrap gap-3">
+                            <a
+                                :href="'https://clinicaltrials.gov/study/' + match.nct_id"
+                                target="_blank"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                                View on ClinicalTrials.gov
+                            </a>
+                            <button
+                                @click="saveTrial(match)"
+                                class="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 hover:border-primary-300 text-slate-700 font-medium rounded-lg transition-colors"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                                </svg>
+                                Save Trial
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div class="flex gap-3">
+                <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <div class="text-sm text-amber-800">
+                    <p class="font-semibold mb-1">Important Disclaimer</p>
+                    <p>These results are for informational purposes only. Always consult with your healthcare provider before enrolling in a clinical trial. Final eligibility is determined by the trial's medical team.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Message -->
+    <div x-show="error" x-transition class="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span x-text="error"></span>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function trialFinder() {
+    return {
+        step: 1,
+        condition: '',
+        trialCount: 0,
+        questions: [],
+        answers: {},
+        matches: [],
+        isLoading: false,
+        error: null,
+
+        // New features
+        popularConditions: [],
+        autocompleteSuggestions: [],
+        showAutocomplete: false,
+        autocompleteTimeout: null,
+        trialInsights: null,
+        relatedConditions: [],
+
+        // Location features
+        patientZipCode: '',
+        maxDistanceMiles: '100',
+        patientLocation: null, // { latitude, longitude }
+        distanceBands: null, // { within_25_miles, within_50_miles, within_100_miles }
+
+        // Result filters
+        resultFilterPhase: 'all',
+        resultFilterMatchLevel: 'all',
+        resultSortBy: 'score',
+        resultFilterDistance: 'all',
+
+        init() {
+            // Fetch popular conditions on page load
+            this.fetchPopularConditions();
+        },
+
+        get canSubmit() {
+            // Check if required questions are answered
+            for (const q of this.questions) {
+                if (q.required && !this.answers[q.id]) {
+                    return false;
+                }
+            }
+            return true;
+        },
+
+        get filteredMatches() {
+            let filtered = [...this.matches];
+
+            // Filter by phase
+            if (this.resultFilterPhase !== 'all') {
+                filtered = filtered.filter(m => m.phase?.includes(this.resultFilterPhase.replace('PHASE', '')));
+            }
+
+            // Filter by match level
+            if (this.resultFilterMatchLevel !== 'all') {
+                const minScores = { excellent: 90, good: 70, possible: 50 };
+                const minScore = minScores[this.resultFilterMatchLevel] || 0;
+                filtered = filtered.filter(m => m.match_score >= minScore);
+            }
+
+            // Filter by distance
+            if (this.resultFilterDistance !== 'all') {
+                const maxDist = parseInt(this.resultFilterDistance);
+                filtered = filtered.filter(m => m.distance_miles !== null && m.distance_miles <= maxDist);
+            }
+
+            // Sort
+            if (this.resultSortBy === 'score') {
+                filtered.sort((a, b) => b.match_score - a.match_score);
+            } else if (this.resultSortBy === 'distance') {
+                filtered.sort((a, b) => {
+                    const distA = a.distance_miles ?? Infinity;
+                    const distB = b.distance_miles ?? Infinity;
+                    return distA - distB;
+                });
+            } else if (this.resultSortBy === 'enrollment') {
+                filtered.sort((a, b) => (b.enrollment || 0) - (a.enrollment || 0));
+            } else if (this.resultSortBy === 'phase') {
+                const phaseOrder = { 'PHASE4': 4, 'PHASE3': 3, 'PHASE2': 2, 'PHASE1': 1 };
+                filtered.sort((a, b) => {
+                    const aPhase = Object.entries(phaseOrder).find(([k]) => a.phase?.includes(k))?.[1] || 0;
+                    const bPhase = Object.entries(phaseOrder).find(([k]) => b.phase?.includes(k))?.[1] || 0;
+                    return bPhase - aPhase;
+                });
+            }
+
+            return filtered;
+        },
+
+        async fetchPopularConditions() {
+            try {
+                const response = await fetch('/api/popular-conditions');
+                const data = await response.json();
+                if (data.success && data.conditions) {
+                    this.popularConditions = data.conditions;
+                }
+            } catch (err) {
+                console.error('Failed to fetch popular conditions:', err);
+            }
+        },
+
+        async fetchAutocomplete() {
+            // Debounce autocomplete requests
+            clearTimeout(this.autocompleteTimeout);
+            if (this.condition.length < 2) {
+                this.autocompleteSuggestions = [];
+                return;
+            }
+
+            this.autocompleteTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/condition-autocomplete?q=${encodeURIComponent(this.condition)}`);
+                    const data = await response.json();
+                    this.autocompleteSuggestions = data.suggestions || [];
+                } catch (err) {
+                    console.error('Autocomplete error:', err);
+                }
+            }, 200);
+        },
+
+        async fetchTrialInsights() {
+            try {
+                const response = await fetch(`/api/trial-insights/${encodeURIComponent(this.condition)}`);
+                const data = await response.json();
+                if (data.success) {
+                    this.trialInsights = data;
+                }
+            } catch (err) {
+                console.error('Failed to fetch trial insights:', err);
+            }
+        },
+
+        async fetchRelatedConditions() {
+            try {
+                const response = await fetch(`/api/related-conditions/${encodeURIComponent(this.condition)}`);
+                const data = await response.json();
+                if (data.success) {
+                    this.relatedConditions = data.related_conditions || [];
+                }
+            } catch (err) {
+                console.error('Failed to fetch related conditions:', err);
+            }
+        },
+
+        async searchTrials() {
+            if (!this.condition.trim()) return;
+
+            this.isLoading = true;
+            this.error = null;
+            this.showAutocomplete = false;
+
+            try {
+                // Fetch trial insights in parallel
+                this.fetchTrialInsights();
+                this.fetchRelatedConditions();
+
+                // Use location-aware search if ZIP code provided
+                const endpoint = this.patientZipCode ? '/api/trial-search-nearby' : '/api/trial-search';
+                const body = this.patientZipCode
+                    ? {
+                        condition: this.condition,
+                        zip_code: this.patientZipCode,
+                        max_distance_miles: this.maxDistanceMiles ? parseInt(this.maxDistanceMiles) : 500
+                    }
+                    : { condition: this.condition };
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.trialCount = data.trial_count;
+                    this.questions = data.questions || [];
+                    this.answers = {};
+
+                    // Store patient location if available
+                    if (data.patient_location && data.patient_location.latitude) {
+                        this.patientLocation = data.patient_location;
+                        this.distanceBands = data.distance_bands;
+                    }
+
+                    if (data.trial_count === 0) {
+                        this.error = data.message || 'No trials found for this condition.';
+                        if (this.patientZipCode) {
+                            this.error += ' Try increasing the search distance or removing the location filter.';
+                        }
+                    } else {
+                        this.step = 2;
+                    }
+                } else {
+                    this.error = data.error || 'Search failed. Please try again.';
+                }
+            } catch (err) {
+                this.error = 'Network error. Please check your connection.';
+                console.error(err);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        async findMatches() {
+            if (!this.canSubmit) return;
+
+            this.isLoading = true;
+            this.error = null;
+
+            try {
+                // Use location-aware matching if ZIP code provided
+                const endpoint = this.patientZipCode ? '/api/trial-match-nearby' : '/api/trial-match';
+                const body = this.patientZipCode
+                    ? {
+                        condition: this.condition,
+                        answers: this.answers,
+                        zip_code: this.patientZipCode,
+                        max_distance_miles: this.maxDistanceMiles ? parseInt(this.maxDistanceMiles) : 500
+                    }
+                    : {
+                        condition: this.condition,
+                        answers: this.answers
+                    };
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.matches = data.matches || [];
+                    this.step = 3;
+
+                    // Store patient location
+                    if (data.patient_location && data.patient_location.latitude) {
+                        this.patientLocation = data.patient_location;
+                    }
+
+                    // Reset filters when showing new results
+                    this.resultFilterPhase = 'all';
+                    this.resultFilterMatchLevel = 'all';
+                    this.resultSortBy = this.patientLocation ? 'distance' : 'score'; // Default to distance if location provided
+                    this.resultFilterDistance = 'all';
+                } else {
+                    this.error = data.error || 'Matching failed. Please try again.';
+                }
+            } catch (err) {
+                this.error = 'Network error. Please check your connection.';
+                console.error(err);
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        toggleMultiChoice(questionId, option) {
+            if (!this.answers[questionId]) {
+                this.answers[questionId] = [];
+            }
+            const index = this.answers[questionId].indexOf(option);
+            if (index === -1) {
+                this.answers[questionId].push(option);
+            } else {
+                this.answers[questionId].splice(index, 1);
+            }
+        },
+
+        saveTrial(match) {
+            // Save to localStorage with location info
+            let saved = JSON.parse(localStorage.getItem('saved_trials') || '[]');
+            if (!saved.find(t => t.nct_id === match.nct_id)) {
+                saved.push({
+                    nct_id: match.nct_id,
+                    title: match.title,
+                    match_score: match.match_score,
+                    distance_miles: match.distance_miles,
+                    nearest_site: match.nearest_site,
+                    saved_at: new Date().toISOString()
+                });
+                localStorage.setItem('saved_trials', JSON.stringify(saved));
+                alert('Trial saved! You can view saved trials later.');
+            } else {
+                alert('This trial is already saved.');
+            }
+        },
+
+        async loadAllSites(nctId) {
+            // This function loads all sites for a trial when "View All Sites" is clicked
+            // It's called from within the match card's x-data scope
+            try {
+                let url = `/api/trial-sites/${nctId}`;
+                if (this.patientLocation) {
+                    url += `?patient_lat=${this.patientLocation.latitude}&patient_lon=${this.patientLocation.longitude}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success && data.sites) {
+                    // Find the match and update its all_sites
+                    const match = this.matches.find(m => m.nct_id === nctId);
+                    if (match) {
+                        match.all_sites = data.sites;
+                        match.total_sites = data.total_sites;
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading sites:', err);
+            }
+        },
+
+        startOver() {
+            this.step = 1;
+            this.condition = '';
+            this.trialCount = 0;
+            this.questions = [];
+            this.answers = {};
+            this.matches = [];
+            this.error = null;
+            this.trialInsights = null;
+            this.relatedConditions = [];
+            // Keep location settings as user likely wants to search nearby again
+            // this.patientZipCode = '';
+            // this.maxDistanceMiles = '100';
+            this.patientLocation = null;
+            this.distanceBands = null;
+            this.resultFilterPhase = 'all';
+            this.resultFilterMatchLevel = 'all';
+            this.resultSortBy = 'score';
+            this.resultFilterDistance = 'all';
+        }
+    }
+}
+</script>
+{% endblock %}

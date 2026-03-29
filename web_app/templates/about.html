@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+    <!-- Hero -->
+    <div class="text-center mb-16 animate-fade-in-up">
+        <h1 class="font-display text-4xl md:text-5xl font-extrabold text-navy-900 mb-4">
+            About <span class="gradient-text">ClinAnalytica</span>
+        </h1>
+        <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+            AI-powered protocol intelligence platform designed to help sponsors
+            design better clinical trials from the start.
+        </p>
+    </div>
+
+    <!-- Mission -->
+    <div class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-3xl p-8 text-white mb-12">
+        <h2 class="font-display text-2xl font-bold mb-4">Our Mission</h2>
+        <p class="text-lg text-white/90 leading-relaxed">
+            Better protocol design leads to fewer failed trials, which means faster treatments for patients.
+            We're building the intelligence layer that helps clinical trial sponsors make evidence-based
+            design decisions before they start their studies.
+        </p>
+    </div>
+
+    <!-- Problem/Solution -->
+    <div class="grid md:grid-cols-2 gap-8 mb-12">
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg">
+            <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <h3 class="font-display text-xl font-bold text-navy-900 mb-3">The Problem</h3>
+            <ul class="space-y-2 text-slate-600">
+                <li class="flex items-start gap-2">
+                    <span class="text-red-500 mt-1">&bull;</span>
+                    <span>90% of drugs fail clinical trials</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-red-500 mt-1">&bull;</span>
+                    <span>30-40% of failures due to poor protocol design</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-red-500 mt-1">&bull;</span>
+                    <span>Each amendment costs $141K-$535K</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-red-500 mt-1">&bull;</span>
+                    <span>57% of protocols require substantial amendments</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg">
+            <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <h3 class="font-display text-xl font-bold text-navy-900 mb-3">Our Solution</h3>
+            <ul class="space-y-2 text-slate-600">
+                <li class="flex items-start gap-2">
+                    <span class="text-emerald-500 mt-1">&bull;</span>
+                    <span>AI analysis against 566K+ historical trials</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-emerald-500 mt-1">&bull;</span>
+                    <span>Instant protocol optimization recommendations</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-emerald-500 mt-1">&bull;</span>
+                    <span>Risk prediction before trial starts</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-emerald-500 mt-1">&bull;</span>
+                    <span>Evidence-based eligibility optimization</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center bg-gradient-to-r from-navy-900 to-navy-800 rounded-3xl p-8 text-white">
+        <h2 class="font-display text-2xl font-bold mb-4">Ready to optimize your protocol?</h2>
+        <p class="text-slate-300 mb-6">Get instant AI-powered insights for your clinical trial design.</p>
+        <a href="/" class="inline-flex items-center gap-2 px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-primary-500/30">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Start Analysis
+        </a>
+    </div>
+</div>
+{% endblock %}
