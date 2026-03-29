@@ -1,27 +1,13 @@
 """
-Clintelligence - Modern FastAPI Backend
-AI-Powered Protocol Intelligence Platform
+Clintelligence - Minimal Version for Testing
 """
-
 import os
-from pathlib import Path
-
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
 
-# Initialize app
-app = FastAPI(
-    title="Clintelligence",
-    description="AI-Powered Protocol Intelligence Platform",
-    version="1.0.0"
-)
+app = FastAPI(title="Clintelligence")
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,115 +16,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files and templates
-BASE_DIR = Path(__file__).parent
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-templates = Jinja2Templates(directory=BASE_DIR / "templates")
+HTML = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Clintelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+    <div class="text-center p-8">
+        <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-orange-500 to-blue-500 bg-clip-text text-transparent">
+            Clintelligence
+        </h1>
+        <p class="text-xl text-gray-300 mb-8">AI-Powered Clinical Trial Protocol Intelligence</p>
+        <div class="bg-gray-800 rounded-lg p-8 max-w-2xl">
+            <h2 class="text-2xl font-semibold mb-4">Platform Features</h2>
+            <div class="grid grid-cols-2 gap-4 text-left">
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="font-bold text-orange-400">Protocol Risk Scoring</h3>
+                    <p class="text-sm text-gray-400">Predict amendments & delays</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="font-bold text-blue-400">Site Intelligence</h3>
+                    <p class="text-sm text-gray-400">Find optimal trial sites</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="font-bold text-green-400">Endpoint Analysis</h3>
+                    <p class="text-sm text-gray-400">Benchmark against similar trials</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded">
+                    <h3 class="font-bold text-purple-400">Enrollment Forecast</h3>
+                    <p class="text-sm text-gray-400">Predict timelines accurately</p>
+                </div>
+            </div>
+            <p class="mt-6 text-gray-400">Analyzing 500,000+ clinical trials</p>
+        </div>
+    </div>
+</body>
+</html>"""
 
-
-# ============== MODELS ==============
-class ProtocolInput(BaseModel):
-    protocol_text: str
-    max_similar: int = 500
-    min_similarity: int = 40
-    rank_top_n: int = 100
-
-
-class AnalysisResponse(BaseModel):
-    success: bool
-    extracted_protocol: Optional[Dict] = None
-    risk_assessment: Optional[Dict] = None
-    similar_trials: Optional[List] = None
-    metrics: Optional[Dict] = None
-    site_recommendations: Optional[List] = None
-    error: Optional[str] = None
-
-
-# ============== HELPER FUNCTIONS ==============
-def get_db_stats():
-    """Get database statistics."""
-    return {"total_trials": 566622, "status": "demo"}
-
-
-# ============== PAGES ==============
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    """Home page - Protocol Entry."""
-    stats = get_db_stats()
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "page": "home",
-        "stats": stats
-    })
-
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    """Analysis Dashboard."""
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "page": "dashboard"
-    })
-
-
-@app.get("/about", response_class=HTMLResponse)
-async def about(request: Request):
-    """About page."""
-    return templates.TemplateResponse("about.html", {
-        "request": request,
-        "page": "about"
-    })
-
-
-@app.get("/find-trials", response_class=HTMLResponse)
-async def find_trials(request: Request):
-    """Patient trial finder page."""
-    return templates.TemplateResponse("find_trials.html", {
-        "request": request,
-        "page": "find_trials",
-        "recruiting_count": 95000
-    })
-
-
-# ============== API ENDPOINTS ==============
-@app.post("/api/analyze", response_model=AnalysisResponse)
-async def analyze_protocol(input_data: ProtocolInput):
-    """Analyze a protocol - placeholder for demo."""
-    if not input_data.protocol_text or len(input_data.protocol_text.strip()) < 100:
-        raise HTTPException(status_code=400, detail="Protocol text must be at least 100 characters")
-
-    # Demo response
-    return AnalysisResponse(
-        success=True,
-        extracted_protocol={
-            "condition": "Demo Condition",
-            "phase": "Phase 3",
-            "target_enrollment": 500,
-            "primary_endpoint": "Demo Endpoint"
-        },
-        risk_assessment={
-            "overall_risk": "Medium",
-            "amendment_probability": 0.35,
-            "delay_probability": 0.40
-        },
-        similar_trials=[],
-        metrics={"trials_analyzed": 566622},
-        site_recommendations=[]
-    )
-
-
-@app.get("/api/stats")
-async def get_stats():
-    """Get platform statistics."""
-    return get_db_stats()
-
+async def home():
+    return HTML
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "clintelligence"}
-
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
