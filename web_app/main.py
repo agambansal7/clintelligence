@@ -105,52 +105,54 @@ def get_db_stats():
 async def home(request: Request):
     """Home page - Protocol Entry."""
     stats = get_db_stats()
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "page": "home",
-        "stats": stats
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"page": "home", "stats": stats}
+    )
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Analysis Dashboard."""
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "page": "dashboard"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={"page": "dashboard"}
+    )
 
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
     """About page."""
-    return templates.TemplateResponse("about.html", {
-        "request": request,
-        "page": "about"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="about.html",
+        context={"page": "about"}
+    )
 
 
 @app.get("/find-trials", response_class=HTMLResponse)
 async def find_trials(request: Request):
     """Patient trial finder page."""
-    db = get_database()
-    recruiting_count = 0
-    if db:
-        try:
+    recruiting_count = 95000  # Default fallback
+    try:
+        db = get_database()
+        if db:
             from sqlalchemy import text
             with db.engine.connect() as conn:
                 result = conn.execute(text(
                     "SELECT COUNT(*) FROM trials WHERE status IN ('RECRUITING', 'NOT_YET_RECRUITING')"
                 ))
-                recruiting_count = result.scalar()
-        except:
-            recruiting_count = 95000  # Fallback estimate
+                recruiting_count = result.scalar() or 95000
+    except Exception as e:
+        print(f"Find trials DB error: {e}")
 
-    return templates.TemplateResponse("find_trials.html", {
-        "request": request,
-        "page": "find_trials",
-        "recruiting_count": recruiting_count
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="find_trials.html",
+        context={"page": "find_trials", "recruiting_count": recruiting_count}
+    )
 
 
 # ============== API ENDPOINTS ==============
