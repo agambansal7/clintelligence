@@ -605,10 +605,10 @@ function protocolAnalyzer() {
 
                 if (data.success) {
                     this.results = data;
-                    localStorage.setItem('clinanalytica_results', JSON.stringify(data));
-                    localStorage.setItem('clinanalytica_protocol', textToAnalyze);
+                    localStorage.setItem('clintelligence_results', JSON.stringify(data));
+                    localStorage.setItem('clintelligence_protocol', textToAnalyze);
                     if (data.dashboard) {
-                        localStorage.setItem('clinanalytica_dashboard', JSON.stringify(data.dashboard));
+                        localStorage.setItem('clintelligence_dashboard', JSON.stringify(data.dashboard));
                     }
 
                     // Smooth scroll to results
