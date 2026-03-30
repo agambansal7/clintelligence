@@ -1,0 +1,131 @@
+# TrialIntel Docker Compose Configuration
+# Run with: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # API Server
+  # =============================================================================
+  api:
+    build:
+      context: .
+      target: production
+    container_name: trialintel-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/trials.db}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - REQUIRE_API_KEY=${REQUIRE_API_KEY:-false}
+      - API_KEYS=${API_KEYS:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8501}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - trialintel-data:/app/data
+      - trialintel-models:/app/models
+      - trialintel-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - trialintel-network
+
+  # =============================================================================
+  # Dashboard (Streamlit)
+  # =============================================================================
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    container_name: trialintel-dashboard
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/trials.db}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - trialintel-data:/app/data
+      - trialintel-models:/app/models
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - trialintel-network
+
+  # =============================================================================
+  # Redis Cache (optional)
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: trialintel-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - trialintel-redis:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trialintel-network
+    profiles:
+      - with-cache
+
+  # =============================================================================
+  # PostgreSQL Database (optional - for production)
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: trialintel-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-trialintel}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trialintel_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-trialintel}
+    volumes:
+      - trialintel-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trialintel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trialintel-network
+    profiles:
+      - with-postgres
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  trialintel-data:
+    driver: local
+  trialintel-models:
+    driver: local
+  trialintel-logs:
+    driver: local
+  trialintel-redis:
+    driver: local
+  trialintel-postgres:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  trialintel-network:
+    driver: bridge

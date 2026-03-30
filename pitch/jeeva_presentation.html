@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clintelligence - Pitch for Jeeva Clinical Trials</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .slide {
+            min-height: 100vh;
+            display: none;
+            padding: 2.5rem 4rem 6rem 4rem;
+        }
+        .slide.active { display: flex; flex-direction: column; }
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+        }
+        .highlight-card {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        }
+        .warning-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+        }
+        .success-card {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 1px solid #10b981;
+        }
+        .progress-bar {
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            transition: width 0.3s;
+        }
+        .reference {
+            font-size: 9px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: #f1f5f9;
+        }
+
+        /* Print styles for PDF export */
+        @media print {
+            .slide {
+                display: flex !important;
+                flex-direction: column;
+                min-height: 100vh;
+                page-break-after: always;
+                page-break-inside: avoid;
+                padding: 2rem 3rem;
+            }
+            .slide:last-child {
+                page-break-after: auto;
+            }
+            .fixed {
+                display: none !important;
+            }
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .gradient-text {
+                -webkit-print-color-adjust: exact !important;
+                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%) !important;
+                -webkit-background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+            }
+            .stat-card, .highlight-card, .warning-card, .success-card {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+
+        @page {
+            size: landscape;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800">
+    <!-- Progress Bar -->
+    <div class="fixed top-0 left-0 right-0 bg-slate-100 z-50">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Navigation - Simplified -->
+    <div class="fixed bottom-6 right-8 flex items-center gap-3 z-50">
+        <span class="text-sm text-slate-400 font-medium" id="slideCounter">1 / 17</span>
+        <button onclick="prevSlide()" class="nav-btn bg-white border border-slate-200 shadow-sm">
+            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <button onclick="nextSlide()" class="nav-btn bg-indigo-600 shadow-sm">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+    </div>
+
+    <!-- Slide 1: Title -->
+    <div class="slide active" data-slide="1">
+        <div class="flex-1 flex flex-col items-center justify-center text-center">
+            <div class="mb-8">
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium mb-6">
+                    Prepared for Jeeva Clinical Trials
+                </div>
+            </div>
+            <h1 class="text-7xl font-bold gradient-text mb-6">Clintelligence</h1>
+            <p class="text-2xl text-slate-600 mb-8">AI-Powered Clinical Trial Intelligence Platform</p>
+            <p class="text-xl text-slate-500 italic">"Transforming Protocol Design with Data-Driven Insights"</p>
+            <div class="mt-16 flex items-center gap-8">
+                <div class="text-center">
+                    <div class="text-4xl font-bold text-indigo-600">500K+</div>
+                    <div class="text-sm text-slate-500">Trials Analyzed</div>
+                </div>
+                <div class="w-px h-12 bg-slate-300"></div>
+                <div class="text-center">
+                    <div class="text-4xl font-bold text-indigo-600">Real-time</div>
+                    <div class="text-sm text-slate-500">CT.gov Sync</div>
+                </div>
+                <div class="w-px h-12 bg-slate-300"></div>
+                <div class="text-center">
+                    <div class="text-4xl font-bold text-indigo-600">AI</div>
+                    <div class="text-sm text-slate-500">Powered by Claude</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 2: The Challenge -->
+    <div class="slide" data-slide="2">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">The Challenge</h2>
+        <p class="text-xl text-slate-500 mb-10">Clinical Trials Are Failing at Alarming Rates</p>
+
+        <div class="grid grid-cols-2 gap-6 flex-1">
+            <div class="space-y-5">
+                <div class="stat-card rounded-2xl p-5">
+                    <div class="text-5xl font-bold text-red-500 mb-2">40-50%</div>
+                    <div class="text-lg text-slate-700">of trials under-enroll or require enrollment extensions</div>
+                    <div class="reference mt-2">Carlisle et al. BMC Med Res Methodol, 2015; Fogel DB. Contemp Clin Trials, 2018</div>
+                </div>
+                <div class="stat-card rounded-2xl p-5">
+                    <div class="text-5xl font-bold text-orange-500 mb-2">~80%</div>
+                    <div class="text-lg text-slate-700">of trials undergo at least one protocol amendment</div>
+                    <div class="reference mt-2">Getz KA et al. Tufts CSDD Impact Report, 2011; Ther Innov Regul Sci, 2016</div>
+                </div>
+            </div>
+            <div class="space-y-5">
+                <div class="stat-card rounded-2xl p-5">
+                    <div class="text-5xl font-bold text-amber-500 mb-2">$350K-$1.5M</div>
+                    <div class="text-lg text-slate-700">per substantial amendment <span class="text-sm text-slate-500">(up to $5-8M in large Phase III)</span></div>
+                    <div class="reference mt-2">Getz KA et al. Tufts CSDD, 2016; Moore TJ et al. J Clin Epidemiol, 2018</div>
+                </div>
+                <div class="stat-card rounded-2xl p-5">
+                    <div class="text-5xl font-bold text-rose-500 mb-2">6-18 months</div>
+                    <div class="text-lg text-slate-700">median enrollment delay in underperforming trials</div>
+                    <div class="reference mt-2">Bennette CS et al. Trials, 2016; Kitterman DR et al. Clin Trials, 2011</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="warning-card rounded-2xl p-5 mt-6">
+            <p class="text-lg font-semibold text-amber-900">The Root Cause: Protocol design decisions made without comprehensive historical intelligence.</p>
+        </div>
+    </div>
+
+    <!-- Slide 3: Hidden Cost - IMPROVED -->
+    <div class="slide" data-slide="3">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">The Hidden Cost of Poor Protocol Design</h2>
+        <p class="text-xl text-slate-500 mb-8">A Single Trial Can Lose Millions to Preventable Issues</p>
+
+        <div class="grid grid-cols-3 gap-5 flex-1">
+            <!-- Left Column: Direct Costs -->
+            <div class="space-y-4">
+                <div class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Direct Amendment Costs</div>
+
+                <div class="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">IRB/EC Resubmission</span>
+                        <span class="text-red-600 font-bold">$75K+</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Per country, per amendment</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Site Re-training</span>
+                        <span class="text-red-600 font-bold">$50K+</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Staff time, materials, travel</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Document Updates</span>
+                        <span class="text-red-600 font-bold">$25K+</span>
+                    </div>
+                    <div class="text-xs text-slate-500">ICF, CRF, monitoring plans</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">System Changes</span>
+                        <span class="text-red-600 font-bold">$100K+</span>
+                    </div>
+                    <div class="text-xs text-slate-500">EDC, IVRS, database updates</div>
+                </div>
+            </div>
+
+            <!-- Middle Column: Time & Opportunity -->
+            <div class="space-y-4">
+                <div class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Time & Opportunity Costs</div>
+
+                <div class="bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Delay per Amendment</span>
+                        <span class="text-amber-600 font-bold">2-4 months</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Implementation & approval time</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Lost Revenue/Day</span>
+                        <span class="text-amber-600 font-bold">$1-8M</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Delayed market entry (blockbuster)</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Competitive Window</span>
+                        <span class="text-amber-600 font-bold">Narrowed</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Rivals advance while you pause</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Patent Life Erosion</span>
+                        <span class="text-amber-600 font-bold">Months lost</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Every delay = less exclusivity</div>
+                </div>
+            </div>
+
+            <!-- Right Column: Patient & Quality -->
+            <div class="space-y-4">
+                <div class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Patient & Quality Impact</div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Dropout Risk Increase</span>
+                        <span class="text-purple-600 font-bold">5-20%</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Re-consent burden, confusion</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Data Integrity Risk</span>
+                        <span class="text-purple-600 font-bold">Elevated</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Protocol deviations increase</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Site Fatigue</span>
+                        <span class="text-purple-600 font-bold">Higher</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Reduced engagement & performance</div>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-slate-700 font-medium">Regulatory Scrutiny</span>
+                        <span class="text-purple-600 font-bold">Increased</span>
+                    </div>
+                    <div class="text-xs text-slate-500">Multiple amendments raise flags</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Summary -->
+        <div class="grid grid-cols-2 gap-5 mt-5">
+            <div class="bg-slate-900 rounded-xl p-5 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-slate-400 text-sm font-medium">Average Trial Impact</div>
+                        <div class="text-3xl font-bold text-red-400 mt-1">$800K - $3.5M+</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-sm font-medium">With 2.3 avg amendments</div>
+                        <div class="text-xs text-slate-500 mt-1">Getz KA et al. Ther Innov Regul Sci, 2016</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-card rounded-xl p-5 text-white flex items-center justify-center">
+                <p class="text-lg font-semibold text-center">What if you could predict and prevent these issues BEFORE they happen?</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: Introducing Clintelligence -->
+    <div class="slide" data-slide="4">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Introducing Clintelligence</h2>
+        <p class="text-xl text-slate-500 mb-10">Your AI Co-Pilot for Protocol Optimization</p>
+
+        <div class="grid grid-cols-5 gap-5 mb-10">
+            <div class="highlight-card rounded-2xl p-5 text-white text-center">
+                <div class="text-3xl mb-3">🎯</div>
+                <div class="font-bold mb-2">Predict</div>
+                <div class="text-sm text-indigo-200">Amendment risks before submission</div>
+            </div>
+            <div class="highlight-card rounded-2xl p-5 text-white text-center">
+                <div class="text-3xl mb-3">📊</div>
+                <div class="font-bold mb-2">Benchmark</div>
+                <div class="text-sm text-indigo-200">Design against successful trials</div>
+            </div>
+            <div class="highlight-card rounded-2xl p-5 text-white text-center">
+                <div class="text-3xl mb-3">🔍</div>
+                <div class="font-bold mb-2">Identify</div>
+                <div class="text-sm text-indigo-200">Enrollment bottlenecks early</div>
+            </div>
+            <div class="highlight-card rounded-2xl p-5 text-white text-center">
+                <div class="text-3xl mb-3">💡</div>
+                <div class="font-bold mb-2">Recommend</div>
+                <div class="text-sm text-indigo-200">Evidence-based optimizations</div>
+            </div>
+            <div class="highlight-card rounded-2xl p-5 text-white text-center">
+                <div class="text-3xl mb-3">🏥</div>
+                <div class="font-bold mb-2">Accelerate</div>
+                <div class="text-sm text-indigo-200">Site selection with proven performers</div>
+            </div>
+        </div>
+
+        <div class="success-card rounded-2xl p-6 text-center mb-8">
+            <p class="text-2xl font-semibold text-emerald-900">"Design smarter protocols. Run faster trials. Achieve better outcomes."</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-5">
+            <div class="stat-card rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-indigo-600">500K+</div>
+                <div class="text-sm text-slate-600">Trials in Database</div>
+                <div class="reference mt-1">ClinicalTrials.gov NIH Registry</div>
+            </div>
+            <div class="stat-card rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-indigo-600">50+</div>
+                <div class="text-sm text-slate-600">Attributes Analyzed</div>
+            </div>
+            <div class="stat-card rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-indigo-600">Real-time</div>
+                <div class="text-sm text-slate-600">CT.gov Sync</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: Platform Overview -->
+    <div class="slide" data-slide="5">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Platform Overview</h2>
+        <p class="text-xl text-slate-500 mb-10">Four Integrated Intelligence Modules</p>
+
+        <div class="grid grid-cols-2 gap-6 flex-1">
+            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-7 text-white">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">📋</div>
+                    <h3 class="text-2xl font-bold">Overview</h3>
+                </div>
+                <ul class="space-y-2 text-indigo-100">
+                    <li>• Executive summary at a glance</li>
+                    <li>• Key risk metrics</li>
+                    <li>• Critical warnings</li>
+                    <li>• Top recommendations</li>
+                </ul>
+            </div>
+
+            <div class="bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl p-7 text-white">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">🏢</div>
+                    <h3 class="text-2xl font-bold">Competitive Landscape</h3>
+                </div>
+                <ul class="space-y-2 text-violet-100">
+                    <li>• Similar trials analysis</li>
+                    <li>• Sponsor track records</li>
+                    <li>• Market intelligence</li>
+                    <li>• Mechanism grouping</li>
+                </ul>
+            </div>
+
+            <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-7 text-white">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">⚙️</div>
+                    <h3 class="text-2xl font-bold">Protocol Design</h3>
+                </div>
+                <ul class="space-y-2 text-purple-100">
+                    <li>• Eligibility optimization</li>
+                    <li>• Endpoint intelligence</li>
+                    <li>• Amendment risk prediction</li>
+                    <li>• Sample size guidance</li>
+                </ul>
+            </div>
+
+            <div class="bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 rounded-2xl p-7 text-white">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">🚀</div>
+                    <h3 class="text-2xl font-bold">Operations</h3>
+                </div>
+                <ul class="space-y-2 text-fuchsia-100">
+                    <li>• Site intelligence</li>
+                    <li>• Enrollment forecasting</li>
+                    <li>• Risk matrix</li>
+                    <li>• Timeline scenarios</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: How It Works -->
+    <div class="slide" data-slide="6">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">How It Works</h2>
+        <p class="text-xl text-slate-500 mb-10">Simple 3-Step Process</p>
+
+        <div class="flex items-center justify-between flex-1 gap-6">
+            <div class="flex-1 text-center">
+                <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                    <span class="text-3xl">📄</span>
+                </div>
+                <div class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">1</div>
+                <h3 class="text-xl font-bold mb-2">Input Your Protocol</h3>
+                <p class="text-slate-600">Upload your protocol synopsis or paste key details (condition, phase, endpoints, eligibility)</p>
+            </div>
+
+            <div class="text-4xl text-slate-300">→</div>
+
+            <div class="flex-1 text-center">
+                <div class="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                    <span class="text-3xl">🤖</span>
+                </div>
+                <div class="w-14 h-14 bg-violet-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">2</div>
+                <h3 class="text-xl font-bold mb-2">AI Analysis</h3>
+                <p class="text-slate-600">Our engine matches against 500K+ trials, analyzes patterns, and generates insights</p>
+            </div>
+
+            <div class="text-4xl text-slate-300">→</div>
+
+            <div class="flex-1 text-center">
+                <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                    <span class="text-3xl">📊</span>
+                </div>
+                <div class="w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">3</div>
+                <h3 class="text-xl font-bold mb-2">Actionable Intelligence</h3>
+                <p class="text-slate-600">Receive comprehensive dashboard with recommendations, benchmarks, and predictions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 7: Overview Dashboard -->
+    <div class="slide" data-slide="7">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Module Deep-Dive</h2>
+        <p class="text-xl text-slate-500 mb-6">Overview Dashboard - Executive Summary at a Glance</p>
+
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="stat-card rounded-xl p-4 text-center">
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Overall Risk</div>
+                <div class="text-4xl font-bold text-amber-500">54/100</div>
+                <div class="text-xs text-slate-500 mt-1">Composite score</div>
+            </div>
+            <div class="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4 text-center">
+                <div class="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">Amendment Risk</div>
+                <div class="text-4xl font-bold text-red-500">68%</div>
+                <div class="text-xs text-slate-500 mt-1">Probability</div>
+            </div>
+            <div class="stat-card rounded-xl p-4 text-center">
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Complexity</div>
+                <div class="text-4xl font-bold text-slate-700">62</div>
+                <div class="text-xs text-slate-500 mt-1">vs. benchmark</div>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 text-center">
+                <div class="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">Success Rate</div>
+                <div class="text-4xl font-bold text-emerald-500">72%</div>
+                <div class="text-xs text-slate-500 mt-1">Similar trials</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-5 flex-1">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-5">
+                <h3 class="font-bold text-red-800 mb-3 flex items-center gap-2">
+                    <span>⚠️</span> Critical Warnings
+                </h3>
+                <div class="space-y-2">
+                    <div class="bg-white p-3 rounded-lg border border-red-100">
+                        <span class="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-bold mr-2">HIGH</span>
+                        <span class="text-sm text-red-900">Eligibility criteria stricter than 85% of similar trials</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-red-100">
+                        <span class="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-bold mr-2">HIGH</span>
+                        <span class="text-sm text-red-900">Primary endpoint differs from FDA precedent</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
+                <h3 class="font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                    <span>✓</span> Protocol Strengths
+                </h3>
+                <div class="space-y-2 text-sm text-emerald-700">
+                    <div class="flex items-start gap-2">
+                        <span class="text-emerald-500">+</span>
+                        <span>Sample size aligned with successful trials</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-emerald-500">+</span>
+                        <span>Treatment duration within benchmark range</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-emerald-500">+</span>
+                        <span>Standard-of-care comparator used</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 8: Competitive Landscape -->
+    <div class="slide" data-slide="8">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Module Deep-Dive</h2>
+        <p class="text-xl text-slate-500 mb-6">Competitive Landscape - Know Your Competition</p>
+
+        <div class="grid grid-cols-2 gap-5 flex-1">
+            <div>
+                <h3 class="font-bold text-slate-800 mb-3">Similar Trials Analysis</h3>
+                <div class="space-y-3">
+                    <div class="stat-card rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-mono text-indigo-600 font-semibold">NCT04012345</span>
+                            <span class="text-2xl font-bold text-indigo-500">87.5</span>
+                        </div>
+                        <div class="text-sm text-slate-600 mb-2">Phase 3 JAK Inhibitor in RA</div>
+                        <div class="flex gap-2 text-xs">
+                            <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded">COMPLETED</span>
+                            <span class="px-2 py-1 bg-violet-100 text-violet-700 rounded">Phase 3</span>
+                        </div>
+                    </div>
+                    <div class="stat-card rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-mono text-indigo-600 font-semibold">NCT04567890</span>
+                            <span class="text-2xl font-bold text-indigo-500">82.3</span>
+                        </div>
+                        <div class="text-sm text-slate-600 mb-2">Phase 2 TNF-alpha in RA</div>
+                        <div class="flex gap-2 text-xs">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded">RECRUITING</span>
+                            <span class="px-2 py-1 bg-violet-100 text-violet-700 rounded">Phase 2</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-slate-800 mb-3">Top Sponsors in Similar Trials</h3>
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 p-2 bg-white rounded-lg">
+                            <div class="w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                            <div class="flex-1">
+                                <div class="font-medium">AbbVie Inc.</div>
+                                <div class="text-xs text-slate-500">12 trials (78% completed)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-2 bg-white rounded-lg">
+                            <div class="w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                            <div class="flex-1">
+                                <div class="font-medium">Pfizer Inc.</div>
+                                <div class="text-xs text-slate-500">9 trials (82% completed)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-2 bg-white rounded-lg">
+                            <div class="w-8 h-8 bg-slate-400 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                            <div class="flex-1">
+                                <div class="font-medium">Eli Lilly</div>
+                                <div class="text-xs text-slate-500">7 trials (71% completed)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="warning-card rounded-xl p-4 mt-4">
+            <p class="font-semibold text-amber-900">Why It Matters: Understanding the competitive landscape helps avoid patient recruitment conflicts and learn from others' successes/failures.</p>
+        </div>
+    </div>
+
+    <!-- Slide 9: Protocol Design -->
+    <div class="slide" data-slide="9">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Module Deep-Dive</h2>
+        <p class="text-xl text-slate-500 mb-6">Protocol Design - Optimize Every Element</p>
+
+        <div class="grid grid-cols-3 gap-5 flex-1">
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5">
+                <h3 class="font-bold text-amber-900 mb-4">Eligibility Analysis</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="bg-white/70 rounded-lg p-3">
+                        <div class="font-semibold text-slate-700">Screen Failure Prediction</div>
+                        <div class="flex justify-between mt-1">
+                            <span class="text-slate-500">Your Ratio:</span>
+                            <span class="font-bold text-amber-600">3.2:1</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Benchmark:</span>
+                            <span class="font-bold text-slate-600">2.5:1</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/70 rounded-lg p-3">
+                        <div class="font-semibold text-slate-700">Patient Pool Impact</div>
+                        <div class="text-amber-700">-15% due to strict age criteria</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200 rounded-xl p-5">
+                <h3 class="font-bold text-violet-900 mb-4">Endpoint Intelligence</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="bg-white/70 rounded-lg p-3">
+                        <div class="font-semibold text-slate-700">FDA Alignment</div>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">STRONG</span>
+                            <span class="text-slate-600">ACR50 is gold standard</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/70 rounded-lg p-3">
+                        <div class="font-semibold text-slate-700">Historical Success</div>
+                        <div class="text-violet-700">72% of similar endpoints achieved approval</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-xl p-5">
+                <h3 class="font-bold text-red-900 mb-4">Amendment Risk</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="bg-white/70 rounded-lg p-3">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-slate-700">Risk Score</span>
+                            <span class="text-2xl font-bold text-red-500">68/100</span>
+                        </div>
+                        <div class="text-slate-500 mt-1">Predicted amendments: 2.3</div>
+                    </div>
+                    <div class="bg-white/70 rounded-lg p-3">
+                        <div class="font-semibold text-slate-700 mb-1">Top Risk Drivers</div>
+                        <div class="text-red-700">• Eligibility complexity (+18%)</div>
+                        <div class="text-red-700">• Visit schedule density (+12%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 10: Operations -->
+    <div class="slide" data-slide="10">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Module Deep-Dive</h2>
+        <p class="text-xl text-slate-500 mb-6">Operations - Plan for Execution Success</p>
+
+        <div class="grid grid-cols-2 gap-5 flex-1">
+            <div>
+                <h3 class="font-bold text-slate-800 mb-3">Site Intelligence</h3>
+                <div class="stat-card rounded-xl p-4 mb-4">
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <div class="text-3xl font-bold text-indigo-600">45</div>
+                            <div class="text-xs text-slate-500">Recommended Sites</div>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold text-indigo-600">12</div>
+                            <div class="text-xs text-slate-500">Countries</div>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold text-indigo-600">18</div>
+                            <div class="text-xs text-slate-500">Pts/Site Target</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-4">
+                    <div class="text-sm font-semibold text-slate-700 mb-2">Top Performing Sites</div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-sm">
+                            <span>Mayo Clinic, Rochester</span>
+                            <span class="text-indigo-600 font-semibold">8 trials</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span>Johns Hopkins, Baltimore</span>
+                            <span class="text-indigo-600 font-semibold">6 trials</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-slate-800 mb-3">Enrollment Forecast</h3>
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-emerald-500">18 mo</div>
+                        <div class="text-xs text-slate-600">Optimistic</div>
+                        <div class="text-xs text-emerald-600">25% prob</div>
+                    </div>
+                    <div class="bg-indigo-50 border-2 border-indigo-300 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-indigo-500">24 mo</div>
+                        <div class="text-xs text-slate-600">Base Case</div>
+                        <div class="text-xs text-indigo-600">50% prob</div>
+                    </div>
+                    <div class="bg-red-50 border-2 border-red-300 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-red-500">32 mo</div>
+                        <div class="text-xs text-slate-600">Conservative</div>
+                        <div class="text-xs text-red-600">25% prob</div>
+                    </div>
+                </div>
+                <div class="warning-card rounded-xl p-4">
+                    <div class="text-sm font-semibold text-amber-900 mb-1">Key Bottleneck</div>
+                    <div class="text-sm text-amber-800">Competing trials in same geography may slow recruitment by 3-6 months</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 11: Technology -->
+    <div class="slide" data-slide="11">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">The Technology Behind Clintelligence</h2>
+        <p class="text-xl text-slate-500 mb-8">Built for Accuracy and Scale</p>
+
+        <div class="grid grid-cols-3 gap-6 flex-1">
+            <div class="text-center">
+                <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                    <span class="text-3xl text-white">🗄️</span>
+                </div>
+                <h3 class="text-xl font-bold mb-4">Data Foundation</h3>
+                <div class="space-y-3 text-left">
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-xl font-bold text-indigo-600">500K+</div>
+                        <div class="text-sm text-slate-600">Clinical trials indexed</div>
+                    </div>
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-xl font-bold text-indigo-600">Real-time</div>
+                        <div class="text-sm text-slate-600">ClinicalTrials.gov sync</div>
+                    </div>
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-xl font-bold text-indigo-600">50+</div>
+                        <div class="text-sm text-slate-600">Attributes per trial</div>
+                    </div>
+                </div>
+                <div class="reference mt-3">Source: ClinicalTrials.gov NIH Registry</div>
+            </div>
+
+            <div class="text-center">
+                <div class="w-20 h-20 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                    <span class="text-3xl text-white">🤖</span>
+                </div>
+                <h3 class="text-xl font-bold mb-4">AI/ML Engine</h3>
+                <div class="space-y-3 text-left">
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-lg font-bold text-violet-600">Claude AI</div>
+                        <div class="text-sm text-slate-600">Natural language understanding</div>
+                    </div>
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-lg font-bold text-violet-600">Multi-dimensional</div>
+                        <div class="text-sm text-slate-600">Similarity scoring</div>
+                    </div>
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-lg font-bold text-violet-600">Pattern Recognition</div>
+                        <div class="text-sm text-slate-600">From historical outcomes</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <div class="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                    <span class="text-3xl text-white">🔒</span>
+                </div>
+                <h3 class="text-xl font-bold mb-4">Security & Scale</h3>
+                <div class="space-y-3 text-left">
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-lg font-bold text-emerald-600">Cloud-native</div>
+                        <div class="text-sm text-slate-600">Fast, secure infrastructure</div>
+                    </div>
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-lg font-bold text-emerald-600">HIPAA-ready</div>
+                        <div class="text-sm text-slate-600">Compliant data handling</div>
+                    </div>
+                    <div class="stat-card rounded-lg p-3">
+                        <div class="text-lg font-bold text-emerald-600">API-first</div>
+                        <div class="text-sm text-slate-600">Easy integration</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 12: Amendment Risk Case Study -->
+    <div class="slide" data-slide="12">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Proven Value</h2>
+        <p class="text-xl text-slate-500 mb-8">Amendment Risk Prediction - Real Impact</p>
+
+        <div class="grid grid-cols-2 gap-6 flex-1">
+            <div class="bg-red-50 border border-red-200 rounded-2xl p-6">
+                <h3 class="text-xl font-bold text-red-800 mb-5 flex items-center gap-2">
+                    <span>❌</span> Without Clintelligence
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-red-200 pb-2">
+                        <span class="text-slate-700">Substantial Amendments</span>
+                        <span class="text-2xl font-bold text-red-600">3</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-red-200 pb-2">
+                        <span class="text-slate-700">Total Delay</span>
+                        <span class="text-2xl font-bold text-red-600">8 months</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-red-200 pb-2">
+                        <span class="text-slate-700">Additional Cost</span>
+                        <span class="text-2xl font-bold text-red-600">$1.2M</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-700">Patient Dropout</span>
+                        <span class="text-2xl font-bold text-red-600">+18%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                <h3 class="text-xl font-bold text-emerald-800 mb-5 flex items-center gap-2">
+                    <span>✓</span> With Clintelligence
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-emerald-200 pb-2">
+                        <span class="text-slate-700">Amendments</span>
+                        <span class="text-2xl font-bold text-emerald-600">1 (minor)</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-emerald-200 pb-2">
+                        <span class="text-slate-700">Timeline</span>
+                        <span class="text-2xl font-bold text-emerald-600">On-time</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-emerald-200 pb-2">
+                        <span class="text-slate-700">Cost Savings</span>
+                        <span class="text-2xl font-bold text-emerald-600">$1M+</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-700">Patient Retention</span>
+                        <span class="text-2xl font-bold text-emerald-600">Target met</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="success-card rounded-xl p-4 mt-5 text-center">
+            <p class="text-lg font-semibold text-emerald-900">Case: Rheumatoid Arthritis Phase 3 - Amendment risks identified pre-submission, eligibility optimized upfront, endpoint aligned with FDA precedent</p>
+        </div>
+    </div>
+
+    <!-- Slide 13: Site Selection Value -->
+    <div class="slide" data-slide="13">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Proven Value</h2>
+        <p class="text-xl text-slate-500 mb-8">Site Selection - Find Sites That Actually Perform</p>
+
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <div class="stat-card rounded-2xl p-5">
+                <h3 class="font-bold text-slate-800 mb-4">Traditional Approach</h3>
+                <ul class="space-y-3 text-slate-600">
+                    <li class="flex items-start gap-2">
+                        <span class="text-red-500">✗</span>
+                        <span>Rely on existing relationships</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-red-500">✗</span>
+                        <span>Limited visibility into performance</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-red-500">✗</span>
+                        <span>~30% of sites enroll zero patients</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-red-500">✗</span>
+                        <span>Guesswork on regional allocation</span>
+                    </li>
+                </ul>
+                <div class="reference mt-3">Getz KA et al. Am J Ther, 2014; Tufts CSDD</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-5">
+                <h3 class="font-bold text-indigo-800 mb-4">Clintelligence Approach</h3>
+                <ul class="space-y-3 text-slate-700">
+                    <li class="flex items-start gap-2">
+                        <span class="text-emerald-500">✓</span>
+                        <span>Data-driven site recommendations</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-emerald-500">✓</span>
+                        <span>Proven performers in YOUR therapeutic area</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-emerald-500">✓</span>
+                        <span>Historical enrollment rates by site</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-emerald-500">✓</span>
+                        <span>Regional optimization for global trials</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-5">
+            <div class="highlight-card rounded-xl p-5 text-white text-center">
+                <div class="text-3xl font-bold mb-2">Up to 40%</div>
+                <div class="text-indigo-200">Faster site activation</div>
+                <div class="reference mt-2 text-indigo-300">Thiers FA et al. Nat Rev Drug Discov, 2008</div>
+            </div>
+            <div class="highlight-card rounded-xl p-5 text-white text-center">
+                <div class="text-3xl font-bold mb-2">20-30%</div>
+                <div class="text-indigo-200">Higher enrollment rate per site</div>
+                <div class="reference mt-2 text-indigo-300">Getz KA & Campo RA. Clin Trials, 2017</div>
+            </div>
+            <div class="highlight-card rounded-xl p-5 text-white text-center">
+                <div class="text-3xl font-bold mb-2">Reduced</div>
+                <div class="text-indigo-200">Zero-enrolling sites</div>
+                <div class="reference mt-2 text-indigo-300">Data-driven site selection studies</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 14: Enrollment Forecasting Value -->
+    <div class="slide" data-slide="14">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Proven Value</h2>
+        <p class="text-xl text-slate-500 mb-8">Enrollment Forecasting - Realistic Timelines, Better Planning</p>
+
+        <div class="grid grid-cols-2 gap-6 flex-1">
+            <div>
+                <h3 class="font-bold text-slate-800 mb-4">What You Get</h3>
+                <div class="space-y-4">
+                    <div class="stat-card rounded-xl p-4 flex items-start gap-4">
+                        <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">📊</div>
+                        <div>
+                            <div class="font-semibold">Three-scenario Projections</div>
+                            <div class="text-sm text-slate-600">Optimistic, Base, Conservative with probabilities</div>
+                        </div>
+                    </div>
+                    <div class="stat-card rounded-xl p-4 flex items-start gap-4">
+                        <div class="w-12 h-12 bg-violet-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">🎯</div>
+                        <div>
+                            <div class="font-semibold">Sensitivity Analysis</div>
+                            <div class="text-sm text-slate-600">Impact of key variables on timeline</div>
+                        </div>
+                    </div>
+                    <div class="stat-card rounded-xl p-4 flex items-start gap-4">
+                        <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">⚠️</div>
+                        <div>
+                            <div class="font-semibold">Bottleneck Identification</div>
+                            <div class="text-sm text-slate-600">Proactive mitigation strategies</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-slate-800 mb-4">Planning Benefits</h3>
+                <div class="space-y-4">
+                    <div class="success-card rounded-xl p-4">
+                        <div class="font-semibold text-emerald-800">More Accurate Budget Forecasting</div>
+                        <div class="text-sm text-emerald-700">Align financial planning with realistic timelines</div>
+                    </div>
+                    <div class="success-card rounded-xl p-4">
+                        <div class="font-semibold text-emerald-800">Proactive Mitigation Planning</div>
+                        <div class="text-sm text-emerald-700">Address bottlenecks before they impact timeline</div>
+                    </div>
+                    <div class="success-card rounded-xl p-4">
+                        <div class="font-semibold text-emerald-800">Stakeholder Confidence</div>
+                        <div class="text-sm text-emerald-700">Data-backed projections for board presentations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-card rounded-xl p-5 text-white mt-5">
+            <div class="grid grid-cols-3 gap-6 text-center">
+                <div>
+                    <div class="text-2xl font-bold">Improved</div>
+                    <div class="text-indigo-200">Enrollment predictions accuracy</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold">Earlier</div>
+                    <div class="text-indigo-200">Identification of potential delays</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold">Better</div>
+                    <div class="text-indigo-200">Resource allocation decisions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 15: Integration -->
+    <div class="slide" data-slide="15">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Integration & Workflow</h2>
+        <p class="text-xl text-slate-500 mb-10">Fits Into Your Existing Process</p>
+
+        <div class="grid grid-cols-3 gap-6 flex-1">
+            <div class="stat-card rounded-2xl p-6 text-center">
+                <div class="w-16 h-16 bg-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-4 text-3xl">🌐</div>
+                <h3 class="text-xl font-bold mb-3">Standalone Web Platform</h3>
+                <ul class="text-left space-y-2 text-slate-600">
+                    <li>• No installation required</li>
+                    <li>• Secure browser-based access</li>
+                    <li>• Export reports to PDF</li>
+                    <li>• Team collaboration features</li>
+                </ul>
+            </div>
+
+            <div class="stat-card rounded-2xl p-6 text-center">
+                <div class="w-16 h-16 bg-violet-100 rounded-xl flex items-center justify-center mx-auto mb-4 text-3xl">🔌</div>
+                <h3 class="text-xl font-bold mb-3">API Integration</h3>
+                <div class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded mb-3 inline-block">Coming Soon</div>
+                <ul class="text-left space-y-2 text-slate-600">
+                    <li>• Connect to your CTMS</li>
+                    <li>• Automated protocol analysis</li>
+                    <li>• Real-time dashboard updates</li>
+                    <li>• Custom webhooks</li>
+                </ul>
+            </div>
+
+            <div class="stat-card rounded-2xl p-6 text-center">
+                <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+                <h3 class="text-xl font-bold mb-3">Data Security</h3>
+                <ul class="text-left space-y-2 text-slate-600">
+                    <li>• SOC 2 Type II compliant</li>
+                    <li>• Encrypted data transmission</li>
+                    <li>• No PHI/PII required</li>
+                    <li>• HIPAA-ready infrastructure</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 16: Why Jeeva + Clintelligence -->
+    <div class="slide" data-slide="16">
+        <h2 class="text-4xl font-bold text-slate-900 mb-2">Why Jeeva + Clintelligence</h2>
+        <p class="text-xl text-slate-500 mb-10">A Partnership That Makes Sense</p>
+
+        <div class="grid grid-cols-2 gap-6 flex-1">
+            <div class="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl p-7 text-white">
+                <h3 class="text-2xl font-bold mb-5">For Jeeva's Clients</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg flex-shrink-0">🎯</div>
+                        <div>
+                            <div class="font-semibold">Differentiated Service Offering</div>
+                            <div class="text-sm text-indigo-200">AI-powered protocol optimization sets you apart</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg flex-shrink-0">⚡</div>
+                        <div>
+                            <div class="font-semibold">Faster Trial Execution</div>
+                            <div class="text-sm text-indigo-200">Fewer amendments, better enrollment outcomes</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg flex-shrink-0">💰</div>
+                        <div>
+                            <div class="font-semibold">Cost Savings</div>
+                            <div class="text-sm text-indigo-200">Reduced rework, delays, and budget overruns</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-7 text-white">
+                <h3 class="text-2xl font-bold mb-5">For Jeeva's Operations</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg flex-shrink-0">🏆</div>
+                        <div>
+                            <div class="font-semibold">Competitive Advantage</div>
+                            <div class="text-sm text-emerald-200">Cutting-edge technology leadership</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg flex-shrink-0">📈</div>
+                        <div>
+                            <div class="font-semibold">Efficiency Gains</div>
+                            <div class="text-sm text-emerald-200">Faster protocol development cycles</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg flex-shrink-0">🛡️</div>
+                        <div>
+                            <div class="font-semibold">Risk Reduction</div>
+                            <div class="text-sm text-emerald-200">Data-backed decisions for better outcomes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-card rounded-xl p-5 text-white text-center mt-5">
+            <p class="text-xl font-semibold">Strategic Fit: Clintelligence enhances Jeeva's existing clinical trial expertise with scalable AI intelligence.</p>
+        </div>
+    </div>
+
+    <!-- Slide 17: Thank You -->
+    <div class="slide" data-slide="17">
+        <div class="flex-1 flex flex-col items-center justify-center text-center">
+            <h1 class="text-6xl font-bold gradient-text mb-8">Thank You</h1>
+
+            <p class="text-2xl text-slate-600 mb-12 italic">"Better protocols. Faster trials. Smarter decisions."</p>
+
+            <div class="highlight-card rounded-2xl p-8 mb-12 max-w-2xl">
+                <h3 class="text-2xl font-bold text-white mb-6">Let's Connect</h3>
+                <p class="text-indigo-200 mb-4">Live demo available with your own protocol example</p>
+                <div class="bg-white/10 rounded-lg p-4">
+                    <div class="text-indigo-200 text-sm mb-1">Email</div>
+                    <div class="text-white font-semibold text-xl">agambansal7@gmail.com</div>
+                </div>
+            </div>
+
+            <div class="text-4xl font-bold gradient-text">Questions?</div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 17;
+
+        function updateSlide() {
+            document.querySelectorAll('.slide').forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index + 1 === currentSlide) {
+                    slide.classList.add('active');
+                }
+            });
+
+            // Update counter
+            document.getElementById('slideCounter').textContent = `${currentSlide} / ${totalSlides}`;
+
+            // Update progress bar
+            const progress = (currentSlide / totalSlides) * 100;
+            document.getElementById('progressBar').style.width = `${progress}%`;
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                updateSlide();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevSlide();
+            }
+        });
+
+        // Initialize
+        updateSlide();
+    </script>
+</body>
+</html>

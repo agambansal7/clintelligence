@@ -1,0 +1,59 @@
+{
+  "termination": {
+    "accuracy": 0.8966927953530496,
+    "precision": 0.8079000675219447,
+    "recall": 0.4662899454403741,
+    "f1": 0.5913021991598715,
+    "auc_roc": 0.85618480910537,
+    "training_samples": 128083,
+    "feature_importance": {
+      "enrollment": 0.664865928678876,
+      "enrollment_per_site": 0.10961596887710687,
+      "planned_duration_months": 0.054531218021486985,
+      "criteria_length": 0.04596109485274017,
+      "criteria_complexity": 0.02515221848436243,
+      "exclusion_count": 0.01830592452788389,
+      "phase_numeric": 0.013551909467499715,
+      "inclusion_count": 0.011201508413525239,
+      "age_range": 0.009224081743728406,
+      "num_primary_endpoints": 0.007914127930081633,
+      "num_sites": 0.00718803904434611,
+      "max_age": 0.003594606203945669,
+      "min_age": 0.003366263838535524,
+      "is_industry": 0.002455909760406791,
+      "is_academic": 0.0020955773289315113,
+      "has_biomarker_criteria": 0.001304226273771204,
+      "sex_restricted": 0.0004652239656290194,
+      "is_multisite": 0.00031268068290021405
+    }
+  },
+  "delay": {
+    "accuracy": 0.968426969801068,
+    "precision": 0.96145173413508,
+    "recall": 0.932125754736623,
+    "f1": 0.946561657592896,
+    "auc_roc": 0.9956936443312415,
+    "training_samples": 128083,
+    "feature_importance": {
+      "enrollment_per_site": 0.3966884437402653,
+      "planned_duration_months": 0.23429391646149164,
+      "enrollment": 0.18825634504718786,
+      "num_sites": 0.05157082877343109,
+      "is_multisite": 0.040837771344722,
+      "criteria_length": 0.01691225058921592,
+      "criteria_complexity": 0.016831455293347976,
+      "inclusion_count": 0.009043015084159198,
+      "phase_numeric": 0.005334067300053876,
+      "has_biomarker_criteria": 0.00526427707070755,
+      "age_range": 0.004236637519921735,
+      "is_academic": 0.004143836197734911,
+      "exclusion_count": 0.004028878932679175,
+      "max_age": 0.003372702949937555,
+      "is_industry": 0.0022130936724210335,
+      "num_primary_endpoints": 0.0011463978557548998,
+      "min_age": 0.000988794998639455,
+      "sex_restricted": 0.00019677514287805563
+    }
+  },
+  "trained_at": "2026-01-18T18:26:41.363704"
+}

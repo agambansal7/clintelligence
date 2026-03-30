@@ -32,7 +32,16 @@ Thumbs.db
 # Data
 *.db
 *.sqlite
+*.db-shm
+*.db-wal
 data/trials.db
+data/chroma_db/
+data/vector_store/
+data/*.log
+
+# Virtual environments
+reflex_env/
+env/
 
 # Logs
 *.log
