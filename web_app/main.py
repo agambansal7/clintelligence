@@ -368,7 +368,7 @@ async def search_clinicaltrials_api(condition: str, intervention: str = None, ph
         "query.cond": search_condition,
         "pageSize": min(max_results, 100),
         "format": "json",
-        "fields": "NCTId,BriefTitle,OverallStatus,Phase,EnrollmentCount,Condition,InterventionName,EligibilityCriteria,PrimaryOutcome,StartDate,CompletionDate,LeadSponsorName,StudyType"
+        "fields": "NCTId,BriefTitle,OverallStatus,Phase,EnrollmentCount,Condition,InterventionName,EligibilityCriteria,PrimaryOutcome,StartDate,CompletionDate,LeadSponsorName,StudyType,LocationCity,LocationState,LocationCountry,LocationFacility"
     }
 
     # Note: Removed filter.phase as it causes API issues
@@ -403,6 +403,22 @@ async def search_clinicaltrials_api(condition: str, intervention: str = None, ph
                 primary_outcomes = outcomes.get("primaryOutcomes", [])
                 primary_outcome_text = "; ".join([o.get("measure", "") for o in primary_outcomes[:3]])
 
+                # Extract locations
+                contacts_locations = proto.get("contactsLocationsModule", {})
+                locations_list = contacts_locations.get("locations", [])
+                locations = []
+                countries = set()
+                for loc in locations_list[:20]:  # Limit to 20 locations
+                    country = loc.get("country", "")
+                    if country:
+                        countries.add(country)
+                    locations.append({
+                        "facility": loc.get("facility", ""),
+                        "city": loc.get("city", ""),
+                        "state": loc.get("state", ""),
+                        "country": country
+                    })
+
                 trials.append({
                     "nct_id": ident.get("nctId", ""),
                     "title": ident.get("briefTitle", ""),
@@ -416,6 +432,9 @@ async def search_clinicaltrials_api(condition: str, intervention: str = None, ph
                     "sponsor": sponsor.get("leadSponsor", {}).get("name", ""),
                     "start_date": status.get("startDateStruct", {}).get("date", ""),
                     "completion_date": status.get("completionDateStruct", {}).get("date", ""),
+                    "locations": locations,
+                    "countries": list(countries),
+                    "num_sites": len(locations_list)
                 })
 
             return trials
@@ -924,6 +943,26 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
             "max": max(enrollments) if enrollments else 0
         }
 
+        # Aggregate site data from similar trials
+        all_countries = {}
+        all_sites = {}
+        total_sites = 0
+        for trial in similar_trials:
+            total_sites += trial.get("num_sites", 0)
+            for country in trial.get("countries", []):
+                all_countries[country] = all_countries.get(country, 0) + 1
+            for loc in trial.get("locations", []):
+                facility = loc.get("facility", "")
+                if facility:
+                    key = f"{facility}|{loc.get('city', '')}|{loc.get('country', '')}"
+                    if key not in all_sites:
+                        all_sites[key] = {"facility": facility, "city": loc.get("city", ""), "country": loc.get("country", ""), "trials": 0}
+                    all_sites[key]["trials"] += 1
+
+        top_countries = sorted(all_countries.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_sites = sorted(all_sites.values(), key=lambda x: x["trials"], reverse=True)[:10]
+        avg_sites_per_trial = int(total_sites / len(similar_trials)) if similar_trials else 0
+
         # Build comprehensive dashboard data matching frontend structure
         dashboard_data = {
             # Risk Analysis - frontend expects overall_score (not overall_risk_score)
@@ -984,14 +1023,17 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
                 }
             },
 
-            # Site Intelligence - frontend expects strategy with recommended_sites, etc.
+            # Site Intelligence - aggregate from similar trials
             "site_intelligence": {
                 "strategy": {
                     "recommended_sites": enrollment.get("recommended_sites", 50),
-                    "recommended_countries": enrollment.get("recommended_countries", 12),
-                    "pts_per_site_target": enrollment.get("patients_per_site", 15)
+                    "recommended_countries": len(all_countries) if all_countries else enrollment.get("recommended_countries", 12),
+                    "pts_per_site_target": enrollment.get("patients_per_site", 15),
+                    "benchmark_avg": str(avg_sites_per_trial) if avg_sites_per_trial else "-"
                 },
-                "top_sites": []
+                "top_sites": top_sites,
+                "top_countries": [{"country": c[0], "trials": c[1]} for c in top_countries],
+                "regional_distribution": {c[0]: c[1] for c in top_countries}
             },
 
             # Competitive Landscape - frontend expects top_sponsors array
