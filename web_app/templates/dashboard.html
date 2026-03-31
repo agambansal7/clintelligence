@@ -1497,7 +1497,7 @@ function dashboardApp() {
         // Filters for similar trials
         filterStatus: 'all',
         filterPhase: 'all',
-        filterMinScore: 65,
+        filterMinScore: 0,
 
         get similarTrialsData() {
             const enhanced = this.dashboard?.similar_trials_enhanced;
@@ -1524,7 +1524,7 @@ function dashboardApp() {
                 trials = trials.filter(t => t.phase?.includes(this.filterPhase.replace('PHASE', '')));
             }
             if (this.filterMinScore > 0) {
-                trials = trials.filter(t => (t.overall_score || t.overall_similarity || 0) >= this.filterMinScore);
+                trials = trials.filter(t => (t.semantic_score || t.overall_score || t.overall_similarity || 0) >= this.filterMinScore);
             }
 
             return trials;
