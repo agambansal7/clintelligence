@@ -632,26 +632,27 @@ async def analyze_protocol(input_data: ProtocolInput):
         extracted_dict = await extract_protocol_with_claude(input_data.protocol_text)
         print(f"Extracted: {extracted_dict.get('condition')}, {extracted_dict.get('intervention_name')}")
 
-        # Step 2: Search for candidate trials (database first, API fallback)
+        # Step 2: Search for candidate trials (API first, database backup)
         condition = extracted_dict.get("condition", "")
         intervention = extracted_dict.get("intervention_name", "")
         phase = extracted_dict.get("phase", "")
 
         print(f"Step 2: Searching for trials matching {condition}...")
 
-        # Try database first
-        candidate_trials = await search_trials_from_database(
-            condition=simplify_condition_query(condition) if condition else "",
+        # Use ClinicalTrials.gov API directly (most reliable)
+        print("Fetching trials from ClinicalTrials.gov API...")
+        candidate_trials = await search_clinicaltrials_api(
+            condition=condition,
             intervention=intervention,
             phase=phase,
             max_results=100
         )
 
-        # Fallback to ClinicalTrials.gov API if database returns no results
+        # If API returns no results, try database as backup
         if not candidate_trials:
-            print("Database returned no results, trying ClinicalTrials.gov API...")
-            candidate_trials = await search_clinicaltrials_api(
-                condition=condition,
+            print("API returned no results, trying database...")
+            candidate_trials = await search_trials_from_database(
+                condition=simplify_condition_query(condition) if condition else "",
                 intervention=intervention,
                 phase=phase,
                 max_results=100
@@ -727,19 +728,20 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
 
         print(f"Step 2: Searching for '{condition}'...")
 
-        # Try database first
-        candidate_trials = await search_trials_from_database(
-            condition=simplify_condition_query(condition) if condition else "",
+        # Use ClinicalTrials.gov API directly (most reliable)
+        print("Fetching trials from ClinicalTrials.gov API...")
+        candidate_trials = await search_clinicaltrials_api(
+            condition=condition,
             intervention=intervention,
             phase=phase,
             max_results=100
         )
 
-        # Fallback to ClinicalTrials.gov API if database returns no results
+        # If API returns no results, try database as backup
         if not candidate_trials:
-            print("Database returned no results, trying ClinicalTrials.gov API...")
-            candidate_trials = await search_clinicaltrials_api(
-                condition=condition,
+            print("API returned no results, trying database...")
+            candidate_trials = await search_trials_from_database(
+                condition=simplify_condition_query(condition) if condition else "",
                 intervention=intervention,
                 phase=phase,
                 max_results=100
