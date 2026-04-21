@@ -2123,9 +2123,10 @@ class ProtocolInputV2(BaseModel):
 
 
 @app.post("/api/analyze-v2")
-async def analyze_protocol_v2(input_data: ProtocolInputV2):
+async def analyze_protocol_v2(request: Request, input_data: ProtocolInputV2):
     """
     Analyze protocol using OpenAI embeddings for semantic matching and Claude for comprehensive analysis.
+    Auto-saves analysis for logged-in users.
     """
     if not input_data.protocol_text or len(input_data.protocol_text.strip()) < 100:
         raise HTTPException(status_code=400, detail="Protocol text must be at least 100 characters")
@@ -2619,7 +2620,8 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
             }
         }
 
-        return {
+        # Build the full result
+        full_result = {
             "success": True,
             "extracted_protocol": extracted_dict,
             "similar_trials": similar_trials,
@@ -2632,6 +2634,50 @@ async def analyze_protocol_v2(input_data: ProtocolInputV2):
             "dashboard": dashboard_data,
             "analysis": analysis  # Include raw analysis for debugging
         }
+
+        # Auto-save for logged-in users
+        saved_analysis_id = None
+        try:
+            user = get_current_user_from_request(request)
+            if user:
+                from src.database import ProtocolAnalysis
+                db = get_database()
+                if db:
+                    # Generate a name from the condition
+                    analysis_name = extracted_dict.get("condition", "Protocol Analysis")
+                    if extracted_dict.get("phase"):
+                        analysis_name += f" ({extracted_dict.get('phase')})"
+
+                    with db.session() as session:
+                        analysis_record = ProtocolAnalysis(
+                            user_id=user["id"],
+                            name=analysis_name,
+                            condition=extracted_dict.get("condition"),
+                            therapeutic_area=extracted_dict.get("therapeutic_area"),
+                            phase=extracted_dict.get("phase"),
+                            protocol_summary=json.dumps({
+                                "sponsor": extracted_dict.get("sponsor"),
+                                "target_enrollment": extracted_dict.get("target_enrollment"),
+                                "primary_endpoints": extracted_dict.get("primary_endpoints", [])[:3],
+                            }),
+                            analysis_summary=json.dumps({
+                                "risk_score": dashboard_data.get("risk_analysis", {}).get("overall_score"),
+                                "amendment_risk": dashboard_data.get("amendment_intelligence", {}).get("overall_risk_score"),
+                                "success_rate": dashboard_data.get("protocol_optimization", {}).get("success_rate"),
+                            }),
+                            similar_trial_count=len(similar_trials),
+                            full_result=json.dumps(full_result)
+                        )
+                        session.add(analysis_record)
+                        session.flush()
+                        saved_analysis_id = analysis_record.id
+                    print(f"Auto-saved analysis {saved_analysis_id} for user {user['id']}")
+        except Exception as save_error:
+            print(f"Auto-save failed (non-fatal): {save_error}")
+
+        # Add saved_analysis_id to response
+        full_result["saved_analysis_id"] = saved_analysis_id
+        return full_result
 
     except Exception as e:
         import traceback
