@@ -4401,13 +4401,13 @@ async def get_current_user(request: Request):
 @app.get("/login")
 async def login_page(request: Request):
     """Render login page."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request, "page": "login"})
 
 
 @app.get("/register")
 async def register_page(request: Request):
     """Render registration page."""
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse("register.html", {"request": request, "page": "register"})
 
 
 # ============== RUN ==============

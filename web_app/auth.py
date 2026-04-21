@@ -8,16 +8,25 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 import json
 from pathlib import Path
 
-# Simple file-based user storage (can be upgraded to PostgreSQL)
-USERS_FILE = Path(__file__).parent / "data" / "users.json"
-SESSIONS_FILE = Path(__file__).parent / "data" / "sessions.json"
+# Simple in-memory storage (for demo) + file backup when possible
+USERS_CACHE: Dict = {}
+SESSIONS_CACHE: Dict = {}
 
-# Ensure data directory exists
-USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+# Try to use file storage if available
+try:
+    DATA_DIR = Path(__file__).parent / "data"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    USERS_FILE = DATA_DIR / "users.json"
+    SESSIONS_FILE = DATA_DIR / "sessions.json"
+    USE_FILE_STORAGE = True
+except:
+    USE_FILE_STORAGE = False
+    USERS_FILE = None
+    SESSIONS_FILE = None
 
 
 # ============== MODELS ==============
@@ -60,33 +69,47 @@ def generate_token() -> str:
 
 
 def load_users() -> Dict:
-    """Load users from file."""
-    if USERS_FILE.exists():
+    """Load users from file or cache."""
+    global USERS_CACHE
+    if USE_FILE_STORAGE and USERS_FILE and USERS_FILE.exists():
         try:
-            return json.loads(USERS_FILE.read_text())
+            USERS_CACHE = json.loads(USERS_FILE.read_text())
         except:
-            return {}
-    return {}
+            pass
+    return USERS_CACHE
 
 
 def save_users(users: Dict):
-    """Save users to file."""
-    USERS_FILE.write_text(json.dumps(users, indent=2))
+    """Save users to file and cache."""
+    global USERS_CACHE
+    USERS_CACHE = users
+    if USE_FILE_STORAGE and USERS_FILE:
+        try:
+            USERS_FILE.write_text(json.dumps(users, indent=2))
+        except:
+            pass
 
 
 def load_sessions() -> Dict:
-    """Load sessions from file."""
-    if SESSIONS_FILE.exists():
+    """Load sessions from file or cache."""
+    global SESSIONS_CACHE
+    if USE_FILE_STORAGE and SESSIONS_FILE and SESSIONS_FILE.exists():
         try:
-            return json.loads(SESSIONS_FILE.read_text())
+            SESSIONS_CACHE = json.loads(SESSIONS_FILE.read_text())
         except:
-            return {}
-    return {}
+            pass
+    return SESSIONS_CACHE
 
 
 def save_sessions(sessions: Dict):
-    """Save sessions to file."""
-    SESSIONS_FILE.write_text(json.dumps(sessions, indent=2))
+    """Save sessions to file and cache."""
+    global SESSIONS_CACHE
+    SESSIONS_CACHE = sessions
+    if USE_FILE_STORAGE and SESSIONS_FILE:
+        try:
+            SESSIONS_FILE.write_text(json.dumps(sessions, indent=2))
+        except:
+            pass
 
 
 # ============== AUTH FUNCTIONS ==============
