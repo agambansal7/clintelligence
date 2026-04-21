@@ -48,6 +48,19 @@ if static_dir.exists() and any(static_dir.iterdir()):
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
+# Startup event to ensure database tables exist
+@app.on_event("startup")
+async def startup_event():
+    """Create database tables on startup if they don't exist."""
+    try:
+        from src.database import DatabaseManager
+        db = DatabaseManager.get_instance()
+        db.create_tables()
+        print("Database tables verified/created successfully")
+    except Exception as e:
+        print(f"Warning: Could not initialize database tables: {e}")
+
+
 # ============== MODELS ==============
 class ProtocolInput(BaseModel):
     protocol_text: str
