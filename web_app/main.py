@@ -4247,6 +4247,163 @@ async def trial_match_nearby(input_data: LocationMatchInput):
         )
 
 
+# ============== AUTHENTICATION ==============
+from web_app.auth import (
+    UserCreate, UserLogin, create_user, authenticate_user,
+    create_session, validate_session, logout_session, get_user_by_email
+)
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    organization: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/api/auth/register")
+async def register(request: RegisterRequest):
+    """Register a new user with email as username."""
+    try:
+        # Validate email format
+        if not request.email or "@" not in request.email:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Invalid email format"}
+            )
+
+        # Validate password
+        if not request.password or len(request.password) < 6:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Password must be at least 6 characters"}
+            )
+
+        # Create user
+        user_data = UserCreate(
+            email=request.email,
+            password=request.password,
+            full_name=request.full_name,
+            organization=request.organization
+        )
+        user = create_user(user_data)
+
+        # Create session
+        token = create_session(user["id"], user["email"])
+
+        return {
+            "success": True,
+            "message": "Registration successful",
+            "token": token,
+            "user": user
+        }
+
+    except ValueError as e:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": str(e)}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+
+@app.post("/api/auth/login")
+async def login(request: LoginRequest):
+    """Login with email and password."""
+    try:
+        user = authenticate_user(request.email, request.password)
+
+        if not user:
+            return JSONResponse(
+                status_code=401,
+                content={"success": False, "error": "Invalid email or password"}
+            )
+
+        # Create session
+        token = create_session(user["id"], user["email"])
+
+        return {
+            "success": True,
+            "message": "Login successful",
+            "token": token,
+            "user": user
+        }
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+
+@app.post("/api/auth/logout")
+async def logout(request: Request):
+    """Logout and invalidate session."""
+    try:
+        # Get token from header
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            logout_session(token)
+
+        return {"success": True, "message": "Logged out successfully"}
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+
+@app.get("/api/auth/me")
+async def get_current_user(request: Request):
+    """Get current user from session token."""
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                status_code=401,
+                content={"success": False, "error": "Not authenticated"}
+            )
+
+        token = auth_header[7:]
+        user = validate_session(token)
+
+        if not user:
+            return JSONResponse(
+                status_code=401,
+                content={"success": False, "error": "Invalid or expired session"}
+            )
+
+        return {"success": True, "user": user}
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+
+@app.get("/login")
+async def login_page(request: Request):
+    """Render login page."""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/register")
+async def register_page(request: Request):
+    """Render registration page."""
+    return templates.TemplateResponse("register.html", {"request": request})
+
+
 # ============== RUN ==============
 if __name__ == "__main__":
     import uvicorn
