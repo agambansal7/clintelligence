@@ -61,6 +61,13 @@ async def startup_event():
         print(f"Warning: Could not initialize database tables: {e}")
 
 
+# Health check endpoint for Railway
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for Railway deployment."""
+    return {"status": "healthy", "service": "clintelligence"}
+
+
 # ============== MODELS ==============
 class ProtocolInput(BaseModel):
     protocol_text: str
