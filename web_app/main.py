@@ -4248,10 +4248,16 @@ async def trial_match_nearby(input_data: LocationMatchInput):
 
 
 # ============== AUTHENTICATION ==============
-from web_app.auth import (
-    UserCreate, UserLogin, create_user, authenticate_user,
-    create_session, validate_session, logout_session, get_user_by_email
-)
+try:
+    from auth import (
+        UserCreate, UserLogin, create_user, authenticate_user,
+        create_session, validate_session, logout_session, get_user_by_email
+    )
+except ImportError:
+    from web_app.auth import (
+        UserCreate, UserLogin, create_user, authenticate_user,
+        create_session, validate_session, logout_session, get_user_by_email
+    )
 
 
 class RegisterRequest(BaseModel):
