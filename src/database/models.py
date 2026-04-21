@@ -387,3 +387,122 @@ class TrialBenchmark(Base):
             "avg_duration_months": self.avg_duration_months,
             "sample_nct_ids": json.loads(self.sample_nct_ids) if self.sample_nct_ids else [],
         }
+
+
+class User(Base):
+    """User account for persistent analysis history."""
+
+    __tablename__ = "users"
+
+    id = Column(String(16), primary_key=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(64), nullable=False)
+    full_name = Column(String(255), nullable=False)
+    organization = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    analyses = relationship("ProtocolAnalysis", back_populates="user", cascade="all, delete-orphan")
+    trial_searches = relationship("TrialSearch", back_populates="user", cascade="all, delete-orphan")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "full_name": self.full_name,
+            "organization": self.organization,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class UserSession(Base):
+    """User session for authentication."""
+
+    __tablename__ = "user_sessions"
+
+    token = Column(String(64), primary_key=True)
+    user_id = Column(String(16), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="sessions")
+
+
+class ProtocolAnalysis(Base):
+    """Saved protocol analysis for a user."""
+
+    __tablename__ = "protocol_analyses"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(16), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    condition = Column(String(255))
+    therapeutic_area = Column(String(100))
+    phase = Column(String(50))
+    protocol_summary = Column(Text)  # JSON - key protocol fields
+    analysis_summary = Column(Text)  # JSON - key metrics only
+    similar_trial_count = Column(Integer)
+    full_result = Column(Text)  # JSON - complete analysis result
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="analyses")
+
+    __table_args__ = (
+        Index('idx_analysis_user_created', 'user_id', 'created_at'),
+    )
+
+    def to_dict(self, include_full_result: bool = False) -> Dict[str, Any]:
+        result = {
+            "id": self.id,
+            "name": self.name,
+            "condition": self.condition,
+            "therapeutic_area": self.therapeutic_area,
+            "phase": self.phase,
+            "protocol_summary": json.loads(self.protocol_summary) if self.protocol_summary else None,
+            "analysis_summary": json.loads(self.analysis_summary) if self.analysis_summary else None,
+            "similar_trial_count": self.similar_trial_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_full_result:
+            result["full_result"] = json.loads(self.full_result) if self.full_result else None
+        return result
+
+
+class TrialSearch(Base):
+    """Saved patient trial search for a user."""
+
+    __tablename__ = "trial_searches"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(16), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    condition = Column(String(255), nullable=False)
+    patient_answers = Column(Text)  # JSON - answers to screening questions
+    location_zip = Column(String(10))
+    total_matches = Column(Integer)
+    top_match_score = Column(Integer)
+    results = Column(Text)  # JSON - full search results
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="trial_searches")
+
+    __table_args__ = (
+        Index('idx_search_user_created', 'user_id', 'created_at'),
+    )
+
+    def to_dict(self, include_results: bool = False) -> Dict[str, Any]:
+        result = {
+            "id": self.id,
+            "condition": self.condition,
+            "patient_answers": json.loads(self.patient_answers) if self.patient_answers else None,
+            "location_zip": self.location_zip,
+            "total_matches": self.total_matches,
+            "top_match_score": self.top_match_score,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_results:
+            result["results"] = json.loads(self.results) if self.results else None
+        return result

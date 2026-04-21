@@ -319,10 +319,63 @@
                             (filtered from <span x-text="matches.length"></span>)
                         </span>
                     </p>
+                    <!-- Save Search Button (when logged in) -->
+                    <button x-show="isLoggedIn && matches.length > 0 && !loadedSearchId" @click="saveCurrentSearch()" :disabled="isSavingSearch" class="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+                        </svg>
+                        <span x-show="!isSavingSearch">Save This Search</span>
+                        <span x-show="isSavingSearch">Saving...</span>
+                    </button>
+                    <span x-show="loadedSearchId" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 text-white text-sm rounded-lg">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Loaded from saved
+                    </span>
                 </div>
                 <button @click="startOver()" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
                     New Search
                 </button>
+            </div>
+        </div>
+
+        <!-- Saved Searches Panel (when logged in) -->
+        <div x-show="isLoggedIn && savedSearches.length > 0" class="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-navy-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    My Saved Searches
+                </h3>
+                <button @click="showSavedSearches = !showSavedSearches" class="text-sm text-emerald-600 hover:text-emerald-700">
+                    <span x-text="showSavedSearches ? 'Hide' : 'Show All'"></span>
+                </button>
+            </div>
+            <div x-show="showSavedSearches" x-transition class="space-y-2 max-h-48 overflow-y-auto">
+                <template x-for="saved in savedSearches" :key="saved.id">
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                        <button @click="loadSavedSearch(saved.id)" class="flex-1 text-left">
+                            <div class="font-medium text-navy-900" x-text="saved.condition"></div>
+                            <div class="text-xs text-slate-500 flex items-center gap-2">
+                                <span x-text="(saved.total_matches || 0) + ' matches'"></span>
+                                <span x-show="saved.top_match_score" class="text-emerald-600 font-medium" x-text="'Best: ' + saved.top_match_score + '%'"></span>
+                                <span x-show="saved.location_zip" x-text="'ZIP: ' + saved.location_zip"></span>
+                                <span class="text-slate-300">|</span>
+                                <span x-text="new Date(saved.created_at).toLocaleDateString()"></span>
+                            </div>
+                        </button>
+                    </div>
+                </template>
+            </div>
+            <div x-show="!showSavedSearches && savedSearches.length > 0" class="flex gap-2 overflow-x-auto pb-1">
+                <template x-for="saved in savedSearches.slice(0, 3)" :key="saved.id">
+                    <button @click="loadSavedSearch(saved.id)" class="flex-shrink-0 px-3 py-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-sm transition-colors">
+                        <span class="font-medium text-navy-900" x-text="saved.condition"></span>
+                        <span class="text-xs text-slate-500 ml-1" x-text="'(' + (saved.total_matches || 0) + ')'"></span>
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -708,9 +761,120 @@ function trialFinder() {
         resultSortBy: 'score',
         resultFilterDistance: 'all',
 
-        init() {
+        // Save/Load searches
+        isLoggedIn: false,
+        savedSearches: [],
+        showSavedSearches: false,
+        isSavingSearch: false,
+        loadedSearchId: null,
+
+        async init() {
             // Fetch popular conditions on page load
             this.fetchPopularConditions();
+            await this.checkAuth();
+        },
+
+        async checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                this.isLoggedIn = false;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.isLoggedIn = true;
+                    await this.loadSavedSearches();
+                } else {
+                    this.isLoggedIn = false;
+                    localStorage.removeItem('auth_token');
+                }
+            } catch (e) {
+                console.error('Auth check failed:', e);
+                this.isLoggedIn = false;
+            }
+        },
+
+        async loadSavedSearches() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch('/api/trial-searches', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.savedSearches = data.searches || [];
+                }
+            } catch (e) {
+                console.error('Failed to load saved searches:', e);
+            }
+        },
+
+        async saveCurrentSearch() {
+            const token = localStorage.getItem('auth_token');
+            if (!token || this.matches.length === 0) return;
+
+            this.isSavingSearch = true;
+
+            try {
+                const response = await fetch('/api/trial-searches', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        condition: this.condition,
+                        patient_answers: this.answers,
+                        location_zip: this.patientZipCode || null,
+                        results: this.matches
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.loadedSearchId = data.id;
+                    await this.loadSavedSearches();
+                    alert('Search saved successfully!');
+                } else {
+                    alert('Failed to save: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error('Save failed:', e);
+                alert('Failed to save search');
+            } finally {
+                this.isSavingSearch = false;
+            }
+        },
+
+        async loadSavedSearch(searchId) {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/api/trial-searches/${searchId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success && data.search) {
+                    this.condition = data.search.condition;
+                    this.answers = data.search.patient_answers || {};
+                    this.patientZipCode = data.search.location_zip || '';
+                    this.matches = data.search.results || [];
+                    this.loadedSearchId = searchId;
+                    this.step = 3; // Go directly to results
+                } else {
+                    alert('Failed to load search');
+                }
+            } catch (e) {
+                console.error('Load failed:', e);
+                alert('Failed to load search');
+            }
         },
 
         get canSubmit() {
@@ -1011,6 +1175,7 @@ function trialFinder() {
             this.resultFilterMatchLevel = 'all';
             this.resultSortBy = 'score';
             this.resultFilterDistance = 'all';
+            this.loadedSearchId = null;
         }
     }
 }

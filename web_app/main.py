@@ -4247,23 +4247,53 @@ async def trial_match_nearby(input_data: LocationMatchInput):
         )
 
 
-# ============== AUTHENTICATION (INLINE) ==============
+# ============== AUTHENTICATION (DATABASE-BACKED) ==============
 import hashlib
 import secrets as auth_secrets
 from datetime import datetime as auth_datetime, timedelta as auth_timedelta
 
-# In-memory storage
-_AUTH_USERS: Dict[str, Dict] = {}
-_AUTH_SESSIONS: Dict[str, Dict] = {}
-
 def _hash_pw(pw: str) -> str:
     return hashlib.sha256(f"{pw}clintelligence2024".encode()).hexdigest()
+
+
+def get_current_user_from_request(request: Request) -> Optional[Dict]:
+    """Get current user from Authorization header using database."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header[7:]
+    try:
+        from src.database import User, UserSession
+        db = get_database()
+        if not db:
+            return None
+
+        with db.session() as session:
+            user_session = session.query(UserSession).filter(UserSession.token == token).first()
+            if not user_session:
+                return None
+
+            if auth_datetime.utcnow() > user_session.expires_at:
+                session.delete(user_session)
+                return None
+
+            user = session.query(User).filter(User.id == user_session.user_id).first()
+            if not user:
+                return None
+
+            return user.to_dict()
+    except Exception as e:
+        print(f"Auth error: {e}")
+        return None
+
 
 class RegisterRequest(BaseModel):
     email: str
     password: str
     full_name: str
     organization: Optional[str] = None
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -4280,24 +4310,41 @@ async def register(req: RegisterRequest):
             return JSONResponse(status_code=400, content={"success": False, "error": "Password too short"})
 
         email = req.email.lower()
-        if email in _AUTH_USERS:
-            return JSONResponse(status_code=400, content={"success": False, "error": "Email already registered"})
 
-        user_id = auth_secrets.token_hex(8)
-        _AUTH_USERS[email] = {
-            "id": user_id, "email": email, "password_hash": _hash_pw(req.password),
-            "full_name": req.full_name, "organization": req.organization,
-            "created_at": auth_datetime.utcnow().isoformat()
-        }
+        from src.database import User, UserSession
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
 
-        token = auth_secrets.token_urlsafe(32)
-        _AUTH_SESSIONS[token] = {"user_id": user_id, "email": email,
-            "expires_at": (auth_datetime.utcnow() + auth_timedelta(days=7)).isoformat()}
+        with db.session() as session:
+            existing = session.query(User).filter(User.email == email).first()
+            if existing:
+                return JSONResponse(status_code=400, content={"success": False, "error": "Email already registered"})
+
+            user_id = auth_secrets.token_hex(8)
+            user = User(
+                id=user_id,
+                email=email,
+                password_hash=_hash_pw(req.password),
+                full_name=req.full_name,
+                organization=req.organization
+            )
+            session.add(user)
+
+            token = auth_secrets.token_urlsafe(32)
+            user_session = UserSession(
+                token=token,
+                user_id=user_id,
+                expires_at=auth_datetime.utcnow() + auth_timedelta(days=7)
+            )
+            session.add(user_session)
 
         return {"success": True, "token": token, "user": {
             "id": user_id, "email": email, "full_name": req.full_name, "organization": req.organization
         }}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
@@ -4306,21 +4353,34 @@ async def login(req: LoginRequest):
     """Login with email and password."""
     try:
         email = req.email.lower()
-        if email not in _AUTH_USERS:
-            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid credentials"})
 
-        user = _AUTH_USERS[email]
-        if user["password_hash"] != _hash_pw(req.password):
-            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid credentials"})
+        from src.database import User, UserSession
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
 
-        token = auth_secrets.token_urlsafe(32)
-        _AUTH_SESSIONS[token] = {"user_id": user["id"], "email": email,
-            "expires_at": (auth_datetime.utcnow() + auth_timedelta(days=7)).isoformat()}
+        with db.session() as session:
+            user = session.query(User).filter(User.email == email).first()
+            if not user:
+                return JSONResponse(status_code=401, content={"success": False, "error": "Invalid credentials"})
 
-        return {"success": True, "token": token, "user": {
-            "id": user["id"], "email": email, "full_name": user["full_name"], "organization": user["organization"]
-        }}
+            if user.password_hash != _hash_pw(req.password):
+                return JSONResponse(status_code=401, content={"success": False, "error": "Invalid credentials"})
+
+            token = auth_secrets.token_urlsafe(32)
+            user_session = UserSession(
+                token=token,
+                user_id=user.id,
+                expires_at=auth_datetime.utcnow() + auth_timedelta(days=7)
+            )
+            session.add(user_session)
+
+            user_data = user.to_dict()
+
+        return {"success": True, "token": token, "user": user_data}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
@@ -4330,32 +4390,271 @@ async def logout(request: Request):
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-        _AUTH_SESSIONS.pop(token, None)
+        try:
+            from src.database import UserSession
+            db = get_database()
+            if db:
+                with db.session() as session:
+                    user_session = session.query(UserSession).filter(UserSession.token == token).first()
+                    if user_session:
+                        session.delete(user_session)
+        except Exception as e:
+            print(f"Logout error: {e}")
     return {"success": True}
 
 
 @app.get("/api/auth/me")
 async def get_current_user(request: Request):
     """Get current user from session."""
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+    return {"success": True, "user": user}
+
+
+# ============== PROTOCOL ANALYSIS HISTORY ==============
+class SaveAnalysisRequest(BaseModel):
+    name: str
+    full_result: Dict[str, Any]
+
+
+@app.post("/api/analyses")
+async def save_analysis(request: Request, req: SaveAnalysisRequest):
+    """Save current protocol analysis for the logged-in user."""
+    user = get_current_user_from_request(request)
+    if not user:
         return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
 
-    token = auth_header[7:]
-    if token not in _AUTH_SESSIONS:
-        return JSONResponse(status_code=401, content={"success": False, "error": "Invalid session"})
+    try:
+        from src.database import ProtocolAnalysis
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
 
-    session = _AUTH_SESSIONS[token]
-    if auth_datetime.utcnow() > auth_datetime.fromisoformat(session["expires_at"]):
-        _AUTH_SESSIONS.pop(token, None)
-        return JSONResponse(status_code=401, content={"success": False, "error": "Session expired"})
+        # Extract key fields from the full result
+        extracted = req.full_result.get("extracted_protocol", {})
+        dashboard = req.full_result.get("dashboard", {})
 
-    email = session["email"]
-    if email not in _AUTH_USERS:
-        return JSONResponse(status_code=401, content={"success": False, "error": "User not found"})
+        with db.session() as session:
+            analysis = ProtocolAnalysis(
+                user_id=user["id"],
+                name=req.name,
+                condition=extracted.get("condition"),
+                therapeutic_area=extracted.get("therapeutic_area"),
+                phase=extracted.get("phase"),
+                protocol_summary=json.dumps({
+                    "sponsor": extracted.get("sponsor"),
+                    "target_enrollment": extracted.get("target_enrollment"),
+                    "primary_endpoints": extracted.get("primary_endpoints", [])[:3],
+                }),
+                analysis_summary=json.dumps({
+                    "risk_score": dashboard.get("risk_analysis", {}).get("overall_score"),
+                    "amendment_risk": dashboard.get("amendment_intelligence", {}).get("overall_risk_score"),
+                    "success_rate": dashboard.get("protocol_optimization", {}).get("success_rate"),
+                }),
+                similar_trial_count=len(req.full_result.get("similar_trials", [])),
+                full_result=json.dumps(req.full_result)
+            )
+            session.add(analysis)
+            session.flush()
+            analysis_id = analysis.id
 
-    user = _AUTH_USERS[email]
-    return {"success": True, "user": {"id": user["id"], "email": email, "full_name": user["full_name"], "organization": user["organization"]}}
+        return {"success": True, "id": analysis_id, "message": "Analysis saved successfully"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/analyses")
+async def list_analyses(request: Request):
+    """List saved analyses for the logged-in user."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import ProtocolAnalysis
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            analyses = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.user_id == user["id"]
+            ).order_by(ProtocolAnalysis.created_at.desc()).all()
+
+            result = [a.to_dict(include_full_result=False) for a in analyses]
+
+        return {"success": True, "analyses": result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/analyses/{analysis_id}")
+async def get_analysis(request: Request, analysis_id: int):
+    """Get a specific saved analysis with full data."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import ProtocolAnalysis
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            analysis = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.id == analysis_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).first()
+
+            if not analysis:
+                return JSONResponse(status_code=404, content={"success": False, "error": "Analysis not found"})
+
+            result = analysis.to_dict(include_full_result=True)
+
+        return {"success": True, "analysis": result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.delete("/api/analyses/{analysis_id}")
+async def delete_analysis(request: Request, analysis_id: int):
+    """Delete a saved analysis."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import ProtocolAnalysis
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            analysis = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.id == analysis_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).first()
+
+            if not analysis:
+                return JSONResponse(status_code=404, content={"success": False, "error": "Analysis not found"})
+
+            session.delete(analysis)
+
+        return {"success": True, "message": "Analysis deleted"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+# ============== TRIAL SEARCH HISTORY ==============
+class SaveTrialSearchRequest(BaseModel):
+    condition: str
+    patient_answers: Optional[Dict[str, Any]] = None
+    location_zip: Optional[str] = None
+    results: List[Dict[str, Any]]
+
+
+@app.post("/api/trial-searches")
+async def save_trial_search(request: Request, req: SaveTrialSearchRequest):
+    """Save trial search results for the logged-in user."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import TrialSearch
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        top_score = max([r.get("match_score", 0) for r in req.results], default=0)
+
+        with db.session() as session:
+            search = TrialSearch(
+                user_id=user["id"],
+                condition=req.condition,
+                patient_answers=json.dumps(req.patient_answers) if req.patient_answers else None,
+                location_zip=req.location_zip,
+                total_matches=len(req.results),
+                top_match_score=top_score,
+                results=json.dumps(req.results)
+            )
+            session.add(search)
+            session.flush()
+            search_id = search.id
+
+        return {"success": True, "id": search_id, "message": "Search saved successfully"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/trial-searches")
+async def list_trial_searches(request: Request):
+    """List saved trial searches for the logged-in user."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import TrialSearch
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            searches = session.query(TrialSearch).filter(
+                TrialSearch.user_id == user["id"]
+            ).order_by(TrialSearch.created_at.desc()).all()
+
+            result = [s.to_dict(include_results=False) for s in searches]
+
+        return {"success": True, "searches": result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/trial-searches/{search_id}")
+async def get_trial_search(request: Request, search_id: int):
+    """Get a specific saved trial search with full results."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import TrialSearch
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            search = session.query(TrialSearch).filter(
+                TrialSearch.id == search_id,
+                TrialSearch.user_id == user["id"]
+            ).first()
+
+            if not search:
+                return JSONResponse(status_code=404, content={"success": False, "error": "Search not found"})
+
+            result = search.to_dict(include_results=True)
+
+        return {"success": True, "search": result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
 @app.get("/login", response_class=HTMLResponse)
