@@ -4361,13 +4361,21 @@ async def get_current_user(request: Request):
 @app.get("/login")
 async def login_page(request: Request):
     """Render login page."""
-    return templates.TemplateResponse("login.html", {"request": request, "page": "login"})
+    try:
+        return templates.TemplateResponse("login.html", {"request": request, "page": "login"})
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
 
 
 @app.get("/register")
 async def register_page(request: Request):
     """Render registration page."""
-    return templates.TemplateResponse("register.html", {"request": request, "page": "register"})
+    try:
+        return templates.TemplateResponse("register.html", {"request": request, "page": "register"})
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
 
 
 # ============== RUN ==============
