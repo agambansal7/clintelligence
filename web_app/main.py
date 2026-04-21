@@ -4247,18 +4247,17 @@ async def trial_match_nearby(input_data: LocationMatchInput):
         )
 
 
-# ============== AUTHENTICATION ==============
-try:
-    from auth import (
-        UserCreate, UserLogin, create_user, authenticate_user,
-        create_session, validate_session, logout_session, get_user_by_email
-    )
-except ImportError:
-    from web_app.auth import (
-        UserCreate, UserLogin, create_user, authenticate_user,
-        create_session, validate_session, logout_session, get_user_by_email
-    )
+# ============== AUTHENTICATION (INLINE) ==============
+import hashlib
+import secrets as auth_secrets
+from datetime import datetime as auth_datetime, timedelta as auth_timedelta
 
+# In-memory storage
+_AUTH_USERS: Dict[str, Dict] = {}
+_AUTH_SESSIONS: Dict[str, Dict] = {}
+
+def _hash_pw(pw: str) -> str:
+    return hashlib.sha256(f"{pw}clintelligence2024".encode()).hexdigest()
 
 class RegisterRequest(BaseModel):
     email: str
@@ -4266,136 +4265,97 @@ class RegisterRequest(BaseModel):
     full_name: str
     organization: Optional[str] = None
 
-
 class LoginRequest(BaseModel):
     email: str
     password: str
 
 
 @app.post("/api/auth/register")
-async def register(request: RegisterRequest):
-    """Register a new user with email as username."""
+async def register(req: RegisterRequest):
+    """Register a new user."""
     try:
-        # Validate email format
-        if not request.email or "@" not in request.email:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "Invalid email format"}
-            )
+        if not req.email or "@" not in req.email:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid email"})
+        if not req.password or len(req.password) < 6:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Password too short"})
 
-        # Validate password
-        if not request.password or len(request.password) < 6:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "Password must be at least 6 characters"}
-            )
+        email = req.email.lower()
+        if email in _AUTH_USERS:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Email already registered"})
 
-        # Create user
-        user_data = UserCreate(
-            email=request.email,
-            password=request.password,
-            full_name=request.full_name,
-            organization=request.organization
-        )
-        user = create_user(user_data)
-
-        # Create session
-        token = create_session(user["id"], user["email"])
-
-        return {
-            "success": True,
-            "message": "Registration successful",
-            "token": token,
-            "user": user
+        user_id = auth_secrets.token_hex(8)
+        _AUTH_USERS[email] = {
+            "id": user_id, "email": email, "password_hash": _hash_pw(req.password),
+            "full_name": req.full_name, "organization": req.organization,
+            "created_at": auth_datetime.utcnow().isoformat()
         }
 
-    except ValueError as e:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "error": str(e)}
-        )
+        token = auth_secrets.token_urlsafe(32)
+        _AUTH_SESSIONS[token] = {"user_id": user_id, "email": email,
+            "expires_at": (auth_datetime.utcnow() + auth_timedelta(days=7)).isoformat()}
+
+        return {"success": True, "token": token, "user": {
+            "id": user_id, "email": email, "full_name": req.full_name, "organization": req.organization
+        }}
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
 @app.post("/api/auth/login")
-async def login(request: LoginRequest):
+async def login(req: LoginRequest):
     """Login with email and password."""
     try:
-        user = authenticate_user(request.email, request.password)
+        email = req.email.lower()
+        if email not in _AUTH_USERS:
+            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid credentials"})
 
-        if not user:
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": "Invalid email or password"}
-            )
+        user = _AUTH_USERS[email]
+        if user["password_hash"] != _hash_pw(req.password):
+            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid credentials"})
 
-        # Create session
-        token = create_session(user["id"], user["email"])
+        token = auth_secrets.token_urlsafe(32)
+        _AUTH_SESSIONS[token] = {"user_id": user["id"], "email": email,
+            "expires_at": (auth_datetime.utcnow() + auth_timedelta(days=7)).isoformat()}
 
-        return {
-            "success": True,
-            "message": "Login successful",
-            "token": token,
-            "user": user
-        }
-
+        return {"success": True, "token": token, "user": {
+            "id": user["id"], "email": email, "full_name": user["full_name"], "organization": user["organization"]
+        }}
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
 @app.post("/api/auth/logout")
 async def logout(request: Request):
     """Logout and invalidate session."""
-    try:
-        # Get token from header
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            logout_session(token)
-
-        return {"success": True, "message": "Logged out successfully"}
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        _AUTH_SESSIONS.pop(token, None)
+    return {"success": True}
 
 
 @app.get("/api/auth/me")
 async def get_current_user(request: Request):
-    """Get current user from session token."""
-    try:
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": "Not authenticated"}
-            )
+    """Get current user from session."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
 
-        token = auth_header[7:]
-        user = validate_session(token)
+    token = auth_header[7:]
+    if token not in _AUTH_SESSIONS:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Invalid session"})
 
-        if not user:
-            return JSONResponse(
-                status_code=401,
-                content={"success": False, "error": "Invalid or expired session"}
-            )
+    session = _AUTH_SESSIONS[token]
+    if auth_datetime.utcnow() > auth_datetime.fromisoformat(session["expires_at"]):
+        _AUTH_SESSIONS.pop(token, None)
+        return JSONResponse(status_code=401, content={"success": False, "error": "Session expired"})
 
-        return {"success": True, "user": user}
+    email = session["email"]
+    if email not in _AUTH_USERS:
+        return JSONResponse(status_code=401, content={"success": False, "error": "User not found"})
 
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
+    user = _AUTH_USERS[email]
+    return {"success": True, "user": {"id": user["id"], "email": email, "full_name": user["full_name"], "organization": user["organization"]}}
 
 
 @app.get("/login")
