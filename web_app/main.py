@@ -4971,6 +4971,14 @@ async def get_current_user(request: Request):
 class SaveAnalysisRequest(BaseModel):
     name: str
     full_result: Dict[str, Any]
+    study_id: Optional[str] = None  # If provided, creates a new version of existing study
+    version_notes: Optional[str] = None
+
+
+def _generate_study_id() -> str:
+    """Generate a unique study ID for version grouping."""
+    import secrets
+    return secrets.token_hex(16)
 
 
 @app.post("/api/analyses")
@@ -4991,6 +4999,29 @@ async def save_analysis(request: Request, req: SaveAnalysisRequest):
         dashboard = req.full_result.get("dashboard", {})
 
         with db.session() as session:
+            # Determine if this is a new study or a new version
+            study_id = req.study_id
+            version = 1
+            parent_version_id = None
+
+            if study_id:
+                # Creating a new version of existing study
+                # Find the latest version
+                latest = session.query(ProtocolAnalysis).filter(
+                    ProtocolAnalysis.study_id == study_id,
+                    ProtocolAnalysis.user_id == user["id"],
+                    ProtocolAnalysis.is_latest == True
+                ).first()
+
+                if latest:
+                    version = (latest.version or 1) + 1
+                    parent_version_id = latest.id
+                    # Mark previous version as not latest
+                    latest.is_latest = False
+            else:
+                # New study - generate study_id
+                study_id = _generate_study_id()
+
             analysis = ProtocolAnalysis(
                 user_id=user["id"],
                 name=req.name,
@@ -5008,13 +5039,25 @@ async def save_analysis(request: Request, req: SaveAnalysisRequest):
                     "success_rate": dashboard.get("protocol_optimization", {}).get("success_rate"),
                 }),
                 similar_trial_count=len(req.full_result.get("similar_trials", [])),
-                full_result=json.dumps(req.full_result)
+                full_result=json.dumps(req.full_result),
+                # Version control fields
+                study_id=study_id,
+                version=version,
+                parent_version_id=parent_version_id,
+                version_notes=req.version_notes,
+                is_latest=True
             )
             session.add(analysis)
             session.flush()
             analysis_id = analysis.id
 
-        return {"success": True, "id": analysis_id, "message": "Analysis saved successfully"}
+        return {
+            "success": True,
+            "id": analysis_id,
+            "study_id": study_id,
+            "version": version,
+            "message": f"Analysis saved as version {version}"
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -5022,8 +5065,13 @@ async def save_analysis(request: Request, req: SaveAnalysisRequest):
 
 
 @app.get("/api/analyses")
-async def list_analyses(request: Request):
-    """List saved analyses for the logged-in user."""
+async def list_analyses(request: Request, latest_only: bool = True):
+    """List saved analyses for the logged-in user.
+
+    Args:
+        latest_only: If True, only show the latest version of each study.
+                     If False, show all versions.
+    """
     user = get_current_user_from_request(request)
     if not user:
         return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
@@ -5035,11 +5083,29 @@ async def list_analyses(request: Request):
             return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
 
         with db.session() as session:
-            analyses = session.query(ProtocolAnalysis).filter(
+            query = session.query(ProtocolAnalysis).filter(
                 ProtocolAnalysis.user_id == user["id"]
-            ).order_by(ProtocolAnalysis.created_at.desc()).all()
+            )
 
-            result = [a.to_dict(include_full_result=False) for a in analyses]
+            if latest_only:
+                # Only show latest version of each study
+                query = query.filter(ProtocolAnalysis.is_latest == True)
+
+            analyses = query.order_by(ProtocolAnalysis.created_at.desc()).all()
+
+            result = []
+            for a in analyses:
+                analysis_dict = a.to_dict(include_full_result=False)
+                # Count total versions for this study
+                if a.study_id:
+                    version_count = session.query(ProtocolAnalysis).filter(
+                        ProtocolAnalysis.study_id == a.study_id,
+                        ProtocolAnalysis.user_id == user["id"]
+                    ).count()
+                    analysis_dict["total_versions"] = version_count
+                else:
+                    analysis_dict["total_versions"] = 1
+                result.append(analysis_dict)
 
         return {"success": True, "analyses": result}
     except Exception as e:
@@ -5080,8 +5146,14 @@ async def get_analysis(request: Request, analysis_id: int):
 
 
 @app.delete("/api/analyses/{analysis_id}")
-async def delete_analysis(request: Request, analysis_id: int):
-    """Delete a saved analysis."""
+async def delete_analysis(request: Request, analysis_id: int, delete_all_versions: bool = False):
+    """Delete a saved analysis.
+
+    Args:
+        analysis_id: The analysis ID to delete.
+        delete_all_versions: If True, delete all versions of this study.
+                            If False, only delete this specific version.
+    """
     user = get_current_user_from_request(request)
     if not user:
         return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
@@ -5101,9 +5173,161 @@ async def delete_analysis(request: Request, analysis_id: int):
             if not analysis:
                 return JSONResponse(status_code=404, content={"success": False, "error": "Analysis not found"})
 
-            session.delete(analysis)
+            study_id = analysis.study_id
+            was_latest = analysis.is_latest
+
+            if delete_all_versions and study_id:
+                # Delete all versions of this study
+                deleted_count = session.query(ProtocolAnalysis).filter(
+                    ProtocolAnalysis.study_id == study_id,
+                    ProtocolAnalysis.user_id == user["id"]
+                ).delete()
+                return {"success": True, "message": f"Deleted {deleted_count} versions"}
+            else:
+                # Delete only this version
+                session.delete(analysis)
+
+                # If we deleted the latest version, mark the previous version as latest
+                if was_latest and study_id:
+                    previous = session.query(ProtocolAnalysis).filter(
+                        ProtocolAnalysis.study_id == study_id,
+                        ProtocolAnalysis.user_id == user["id"]
+                    ).order_by(ProtocolAnalysis.version.desc()).first()
+
+                    if previous:
+                        previous.is_latest = True
 
         return {"success": True, "message": "Analysis deleted"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/analyses/{analysis_id}/versions")
+async def get_analysis_versions(request: Request, analysis_id: int):
+    """Get all versions of a study."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import ProtocolAnalysis
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            # First get the analysis to find its study_id
+            analysis = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.id == analysis_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).first()
+
+            if not analysis:
+                return JSONResponse(status_code=404, content={"success": False, "error": "Analysis not found"})
+
+            if not analysis.study_id:
+                # No version history - just return this single analysis
+                return {
+                    "success": True,
+                    "study_id": None,
+                    "versions": [analysis.to_dict(include_full_result=False)]
+                }
+
+            # Get all versions of this study
+            versions = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.study_id == analysis.study_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).order_by(ProtocolAnalysis.version.desc()).all()
+
+            result = [v.to_dict(include_full_result=False) for v in versions]
+
+        return {
+            "success": True,
+            "study_id": analysis.study_id,
+            "study_name": analysis.name,
+            "versions": result
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+class CreateNewVersionRequest(BaseModel):
+    version_notes: Optional[str] = None
+
+
+@app.post("/api/analyses/{analysis_id}/new-version")
+async def create_new_version(request: Request, analysis_id: int, req: CreateNewVersionRequest = None):
+    """Create a new version from an existing analysis (for editing)."""
+    user = get_current_user_from_request(request)
+    if not user:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+    try:
+        from src.database import ProtocolAnalysis
+        db = get_database()
+        if not db:
+            return JSONResponse(status_code=500, content={"success": False, "error": "Database unavailable"})
+
+        with db.session() as session:
+            # Get the source analysis
+            source = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.id == analysis_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).first()
+
+            if not source:
+                return JSONResponse(status_code=404, content={"success": False, "error": "Analysis not found"})
+
+            # Ensure we have a study_id
+            study_id = source.study_id or _generate_study_id()
+            if not source.study_id:
+                source.study_id = study_id
+
+            # Find the latest version number
+            latest = session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.study_id == study_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).order_by(ProtocolAnalysis.version.desc()).first()
+
+            new_version = (latest.version or 1) + 1 if latest else 1
+
+            # Mark all previous versions as not latest
+            session.query(ProtocolAnalysis).filter(
+                ProtocolAnalysis.study_id == study_id,
+                ProtocolAnalysis.user_id == user["id"]
+            ).update({"is_latest": False})
+
+            # Create new version
+            new_analysis = ProtocolAnalysis(
+                user_id=user["id"],
+                name=source.name,
+                condition=source.condition,
+                therapeutic_area=source.therapeutic_area,
+                phase=source.phase,
+                protocol_summary=source.protocol_summary,
+                analysis_summary=source.analysis_summary,
+                similar_trial_count=source.similar_trial_count,
+                full_result=source.full_result,
+                study_id=study_id,
+                version=new_version,
+                parent_version_id=source.id,
+                version_notes=req.version_notes if req else None,
+                is_latest=True
+            )
+            session.add(new_analysis)
+            session.flush()
+
+            result = new_analysis.to_dict(include_full_result=True)
+
+        return {
+            "success": True,
+            "analysis": result,
+            "message": f"Created version {new_version}"
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()

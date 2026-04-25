@@ -431,7 +431,7 @@ class UserSession(Base):
 
 
 class ProtocolAnalysis(Base):
-    """Saved protocol analysis for a user."""
+    """Saved protocol analysis for a user with version control."""
 
     __tablename__ = "protocol_analyses"
 
@@ -447,11 +447,20 @@ class ProtocolAnalysis(Base):
     full_result = Column(Text)  # JSON - complete analysis result
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Version control fields
+    study_id = Column(String(32), index=True)  # Groups versions of the same study together
+    version = Column(Integer, default=1)  # Version number (1, 2, 3, etc.)
+    parent_version_id = Column(Integer, ForeignKey("protocol_analyses.id", ondelete="SET NULL"), nullable=True)
+    version_notes = Column(Text)  # Optional notes about changes in this version
+    is_latest = Column(Boolean, default=True)  # Quick flag to identify latest version
+
     # Relationships
     user = relationship("User", back_populates="analyses")
+    parent_version = relationship("ProtocolAnalysis", remote_side=[id], backref="child_versions")
 
     __table_args__ = (
         Index('idx_analysis_user_created', 'user_id', 'created_at'),
+        Index('idx_analysis_study_version', 'study_id', 'version'),
     )
 
     def to_dict(self, include_full_result: bool = False) -> Dict[str, Any]:
@@ -465,6 +474,12 @@ class ProtocolAnalysis(Base):
             "analysis_summary": json.loads(self.analysis_summary) if self.analysis_summary else None,
             "similar_trial_count": self.similar_trial_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            # Version control fields
+            "study_id": self.study_id,
+            "version": self.version,
+            "parent_version_id": self.parent_version_id,
+            "version_notes": self.version_notes,
+            "is_latest": self.is_latest,
         }
         if include_full_result:
             result["full_result"] = json.loads(self.full_result) if self.full_result else None

@@ -39,18 +39,31 @@
                         <span class="text-sm text-indigo-300 font-medium" x-text="'Sponsor: ' + results?.extracted_protocol?.sponsor"></span>
                     </div>
                     <!-- Auto-saved indicator (when logged in) -->
-                    <span x-show="isLoggedIn && currentAnalysisId" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-sm rounded-lg">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                        Auto-saved to your account
-                    </span>
-                    <span x-show="loadedAnalysisId" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-300 text-sm rounded-lg">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                        Loaded from saved
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2 mt-3">
+                        <span x-show="isLoggedIn && currentAnalysisId" class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-sm rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Auto-saved to your account
+                        </span>
+                        <span x-show="loadedAnalysisId" class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-300 text-sm rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Loaded from saved
+                        </span>
+                        <!-- Save as New Version Button -->
+                        <button
+                            x-show="isLoggedIn && loadedAnalysisId"
+                            @click="createNewVersion(loadedAnalysisId)"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-sm rounded-lg transition-colors"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Save as New Version
+                        </button>
+                    </div>
                 </div>
                 <div class="flex gap-6">
                     <div class="text-center">
@@ -98,7 +111,7 @@
                         <div class="flex-1 min-w-0">
                             <button @click="loadSavedAnalysis(saved.id)" class="text-left w-full">
                                 <div class="font-medium text-navy-900 truncate" x-text="saved.name"></div>
-                                <div class="text-xs text-slate-500 flex items-center gap-2">
+                                <div class="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
                                     <span x-text="saved.condition || 'Unknown condition'"></span>
                                     <span class="text-slate-300">|</span>
                                     <span x-text="saved.phase || 'N/A'"></span>
@@ -108,8 +121,29 @@
                             </button>
                         </div>
                         <div class="flex items-center gap-2 ml-3">
+                            <!-- Version Badge -->
+                            <button
+                                x-show="saved.total_versions > 1"
+                                @click.stop="openVersionHistory(saved)"
+                                class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full hover:bg-indigo-200 transition-colors flex items-center gap-1"
+                                :title="'View all ' + saved.total_versions + ' versions'"
+                            >
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                v<span x-text="saved.version || 1"></span>/<span x-text="saved.total_versions"></span>
+                            </button>
+                            <span x-show="saved.total_versions <= 1" class="px-2 py-1 bg-slate-100 text-slate-500 text-xs rounded-full">
+                                v<span x-text="saved.version || 1"></span>
+                            </span>
                             <span class="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full" x-text="(saved.similar_trial_count || 0) + ' trials'"></span>
-                            <button @click="deleteSavedAnalysis(saved.id)" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                            <!-- Edit (Create New Version) -->
+                            <button @click.stop="createNewVersion(saved.id)" class="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit & Create New Version">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </button>
+                            <button @click.stop="deleteSavedAnalysis(saved.id)" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                 </svg>
@@ -2766,6 +2800,128 @@
             </button>
         </div>
     </div>
+
+    <!-- Version History Modal -->
+    <div x-show="showVersionModal" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showVersionModal = false"></div>
+
+            <div x-show="showVersionModal" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-auto p-6 text-left">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-display text-xl font-bold text-navy-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Version History
+                    </h3>
+                    <button @click="showVersionModal = false" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Study Info -->
+                <div class="bg-slate-50 rounded-xl p-4 mb-4">
+                    <p class="font-semibold text-navy-900" x-text="versionHistoryStudyName"></p>
+                    <p class="text-sm text-slate-500" x-text="versionHistory.length + ' versions'"></p>
+                </div>
+
+                <!-- Version List -->
+                <div class="space-y-2 max-h-80 overflow-y-auto">
+                    <template x-for="version in versionHistory" :key="version.id">
+                        <div
+                            class="p-4 border rounded-xl transition-colors cursor-pointer"
+                            :class="version.is_latest ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200 hover:bg-slate-50'"
+                            @click="loadSavedAnalysis(version.id); showVersionModal = false;"
+                        >
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
+                                        :class="version.is_latest ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-600'">
+                                        v<span x-text="version.version"></span>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium text-navy-900" x-text="new Date(version.created_at).toLocaleDateString()"></span>
+                                            <span x-show="version.is_latest" class="px-2 py-0.5 bg-indigo-500 text-white text-xs rounded-full">Latest</span>
+                                        </div>
+                                        <p class="text-xs text-slate-500" x-text="new Date(version.created_at).toLocaleTimeString()"></p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm text-slate-600" x-text="(version.similar_trial_count || 0) + ' trials'"></p>
+                                </div>
+                            </div>
+                            <p x-show="version.version_notes" class="mt-2 text-sm text-slate-600 italic" x-text="version.version_notes"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-4 pt-4 border-t border-slate-200 flex justify-between">
+                    <button
+                        @click="deleteAllVersions()"
+                        class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Delete All Versions
+                    </button>
+                    <button
+                        @click="showVersionModal = false"
+                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create New Version Modal -->
+    <div x-show="showNewVersionModal" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showNewVersionModal = false"></div>
+
+            <div x-show="showNewVersionModal" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto p-6 text-left">
+                <h3 class="font-display text-xl font-bold text-navy-900 mb-4">Create New Version</h3>
+
+                <p class="text-sm text-slate-600 mb-4">
+                    This will create a new version of the protocol analysis. The current version will be preserved in the version history.
+                </p>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Version Notes (optional)</label>
+                    <textarea
+                        x-model="newVersionNotes"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                        placeholder="e.g., Updated enrollment targets, Changed primary endpoint..."
+                    ></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button
+                        @click="showNewVersionModal = false"
+                        class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        @click="confirmCreateNewVersion()"
+                        :disabled="isCreatingVersion"
+                        class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <span x-show="!isCreatingVersion">Create & Edit</span>
+                        <span x-show="isCreatingVersion" class="flex items-center gap-2">
+                            <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            Creating...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -2793,6 +2949,16 @@ function dashboardApp() {
         showSavedPanel: false,
         loadedAnalysisId: null,
         currentAnalysisId: null,  // ID of auto-saved analysis
+        currentStudyId: null,  // Study ID for version control
+
+        // Version control
+        showVersionModal: false,
+        versionHistory: [],
+        versionHistoryStudyName: '',
+        showNewVersionModal: false,
+        newVersionNotes: '',
+        selectedAnalysisForVersion: null,
+        isCreatingVersion: false,
 
         get similarTrialsData() {
             const enhanced = this.dashboard?.similar_trials_enhanced;
@@ -2916,6 +3082,7 @@ function dashboardApp() {
                     this.hasResults = true;
                     this.loadedAnalysisId = analysisId;
                     this.currentAnalysisId = null;  // It's loaded, not freshly saved
+                    this.currentStudyId = data.analysis.study_id || null;  // Store study ID for version control
                     // Also update localStorage so it persists
                     localStorage.setItem('clintelligence_results', JSON.stringify(data.analysis.full_result));
                 } else {
@@ -2950,6 +3117,112 @@ function dashboardApp() {
             } catch (e) {
                 console.error('Delete failed:', e);
                 alert('Failed to delete analysis');
+            }
+        },
+
+        // Version Control Functions
+        async openVersionHistory(saved) {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/api/analyses/${saved.id}/versions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.versionHistory = data.versions || [];
+                    this.versionHistoryStudyName = data.study_name || saved.name;
+                    this.showVersionModal = true;
+                } else {
+                    alert('Failed to load version history');
+                }
+            } catch (e) {
+                console.error('Failed to load versions:', e);
+                alert('Failed to load version history');
+            }
+        },
+
+        createNewVersion(analysisId) {
+            this.selectedAnalysisForVersion = analysisId;
+            this.newVersionNotes = '';
+            this.showNewVersionModal = true;
+        },
+
+        async confirmCreateNewVersion() {
+            if (!this.selectedAnalysisForVersion) return;
+
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            this.isCreatingVersion = true;
+
+            try {
+                const response = await fetch(`/api/analyses/${this.selectedAnalysisForVersion}/new-version`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        version_notes: this.newVersionNotes || null
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.analysis) {
+                    this.showNewVersionModal = false;
+                    // Load the new version
+                    this.results = data.analysis.full_result;
+                    this.dashboard = data.analysis.full_result?.dashboard || null;
+                    this.hasResults = true;
+                    this.loadedAnalysisId = data.analysis.id;
+                    this.currentStudyId = data.analysis.study_id;
+                    // Update localStorage
+                    localStorage.setItem('clintelligence_results', JSON.stringify(data.analysis.full_result));
+                    // Refresh saved analyses list
+                    await this.loadSavedAnalyses();
+                    alert(`Created version ${data.analysis.version}. You can now edit this version.`);
+                } else {
+                    alert('Failed to create new version: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error('Create version failed:', e);
+                alert('Failed to create new version');
+            } finally {
+                this.isCreatingVersion = false;
+            }
+        },
+
+        async deleteAllVersions() {
+            if (!this.versionHistory.length) return;
+
+            const latestVersion = this.versionHistory.find(v => v.is_latest);
+            if (!latestVersion) return;
+
+            if (!confirm(`Are you sure you want to delete ALL ${this.versionHistory.length} versions of this study? This cannot be undone.`)) return;
+
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/api/analyses/${latestVersion.id}?delete_all_versions=true`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showVersionModal = false;
+                    await this.loadSavedAnalyses();
+                    if (this.versionHistory.some(v => v.id === this.loadedAnalysisId)) {
+                        this.loadedAnalysisId = null;
+                    }
+                    alert('All versions deleted');
+                } else {
+                    alert('Failed to delete: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error('Delete failed:', e);
+                alert('Failed to delete versions');
             }
         },
 
