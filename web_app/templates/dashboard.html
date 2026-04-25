@@ -3347,8 +3347,18 @@ function dashboardApp() {
             // Helper functions
             const getRiskColor = (score) => score >= 60 ? '#dc2626' : score >= 40 ? '#f59e0b' : '#10b981';
             const getRiskBg = (score) => score >= 60 ? '#fef2f2' : score >= 40 ? '#fffbeb' : '#ecfdf5';
+            const formatItem = (item) => {
+                if (typeof item === 'string') return item;
+                // Try common field names
+                const text = item.recommendation || item.strength || item.name || item.item ||
+                             item.description || item.text || item.title || item.value || item.detail;
+                if (text) return text;
+                // Extract all string values as fallback
+                const strings = Object.values(item).filter(v => typeof v === 'string' && v.length < 200);
+                return strings.join(' - ') || 'Item';
+            };
             const formatList = (items, limit = 10) => items?.slice(0, limit).map(item =>
-                typeof item === 'string' ? `<li>${item}</li>` : `<li>${item.recommendation || item.strength || item.name || JSON.stringify(item)}</li>`
+                `<li>${formatItem(item)}</li>`
             ).join('') || '<li>No data available</li>';
 
             const reportHtml = `
@@ -3519,7 +3529,17 @@ function dashboardApp() {
     ${(riskAnalysis.critical_watch_items || []).length > 0 ? `
     <h3>Critical Watch Items</h3>
     <ul>
-        ${riskAnalysis.critical_watch_items.map(item => `<li>${item}</li>`).join('')}
+        ${riskAnalysis.critical_watch_items.map(item => {
+            if (typeof item === 'string') return `<li>${item}</li>`;
+            if (item.item) return `<li><strong>${item.item}</strong>${item.rationale ? ': ' + item.rationale : ''}</li>`;
+            if (item.issue) return `<li><strong>${item.issue}</strong>${item.description ? ': ' + item.description : ''}</li>`;
+            if (item.watch_item) return `<li><strong>${item.watch_item}</strong>${item.reason ? ': ' + item.reason : ''}</li>`;
+            if (item.name) return `<li><strong>${item.name}</strong>${item.description ? ': ' + item.description : ''}</li>`;
+            if (item.risk) return `<li><strong>${item.risk}</strong>${item.mitigation ? ' - Mitigation: ' + item.mitigation : ''}</li>`;
+            // Last resort: extract all string values from the object
+            const values = Object.values(item).filter(v => typeof v === 'string').join(' - ');
+            return `<li>${values || 'Watch item requires attention'}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
@@ -3543,14 +3563,26 @@ function dashboardApp() {
     ${(amendmentIntel.likely_amendment_areas || []).length > 0 ? `
     <h3>Likely Amendment Areas</h3>
     <ul>
-        ${amendmentIntel.likely_amendment_areas.map(area => `<li>${typeof area === 'string' ? area : area.area || JSON.stringify(area)}</li>`).join('')}
+        ${amendmentIntel.likely_amendment_areas.map(area => {
+            if (typeof area === 'string') return `<li>${area}</li>`;
+            const areaName = area.area || area.category || area.name || area.type || '';
+            const prob = area.probability || area.likelihood || area.risk;
+            const reason = area.rationale || area.reason || area.description || '';
+            return `<li><strong>${areaName}</strong>${prob ? ' (' + prob + '%)' : ''}${reason ? ': ' + reason : ''}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
     ${(amendmentIntel.prevention_action_plan || []).length > 0 ? `
     <h3>Prevention Action Plan</h3>
     <ul>
-        ${amendmentIntel.prevention_action_plan.map(action => `<li>${typeof action === 'string' ? action : action.action || JSON.stringify(action)}</li>`).join('')}
+        ${amendmentIntel.prevention_action_plan.map(action => {
+            if (typeof action === 'string') return `<li>${action}</li>`;
+            const actionText = action.action || action.recommendation || action.step || action.item || '';
+            const priority = action.priority ? ' [' + action.priority + ']' : '';
+            const reason = action.rationale || action.reason || action.impact || '';
+            return `<li><strong>${actionText}</strong>${priority}${reason ? ': ' + reason : ''}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
@@ -3620,7 +3652,20 @@ function dashboardApp() {
     ${(eligibility.optimization_suggestions || []).length > 0 ? `
     <h3>Optimization Suggestions</h3>
     <ul>
-        ${eligibility.optimization_suggestions.slice(0, 5).map(s => `<li>${typeof s === 'string' ? s : s.suggestion || JSON.stringify(s)}</li>`).join('')}
+        ${eligibility.optimization_suggestions.slice(0, 5).map(s => {
+            if (typeof s === 'string') return `<li>${s}</li>`;
+            if (s.suggestion) return `<li><strong>${s.suggestion}</strong>${s.rationale ? ': ' + s.rationale : ''}${s.impact ? ' (Impact: ' + s.impact + ')' : ''}</li>`;
+            if (s.recommendation) return `<li><strong>${s.recommendation}</strong>${s.rationale ? ': ' + s.rationale : ''}</li>`;
+            if (s.criterion) return `<li><strong>${s.criterion}</strong>${s.recommendation ? ': ' + s.recommendation : ''}${s.impact ? ' (Impact: ' + s.impact + ')' : ''}</li>`;
+            if (s.criteria) return `<li><strong>${s.criteria}</strong>: ${s.current || ''} → ${s.proposed || s.recommendation || ''}</li>`;
+            if (s.title) return `<li><strong>${s.title}</strong>${s.description ? ': ' + s.description : ''}</li>`;
+            // Extract readable values from object
+            const values = Object.entries(s)
+                .filter(([k, v]) => typeof v === 'string' && v.length < 200)
+                .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                .join('; ');
+            return `<li>${values || 'Optimization suggestion'}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
@@ -3705,7 +3750,18 @@ function dashboardApp() {
     ${(enrollment.key_enrollment_risks || []).length > 0 ? `
     <h3>Key Enrollment Risks</h3>
     <ul>
-        ${enrollment.key_enrollment_risks.map(r => `<li>${typeof r === 'string' ? r : r.risk || JSON.stringify(r)}</li>`).join('')}
+        ${enrollment.key_enrollment_risks.map(r => {
+            if (typeof r === 'string') return `<li>${r}</li>`;
+            if (r.risk) return `<li><strong>${r.risk}</strong>${r.mitigation ? ' - Mitigation: ' + r.mitigation : ''}${r.impact ? ' (Impact: ' + r.impact + ')' : ''}</li>`;
+            if (r.factor) return `<li><strong>${r.factor}</strong>${r.description ? ': ' + r.description : ''}</li>`;
+            if (r.challenge) return `<li><strong>${r.challenge}</strong>${r.solution ? ' - Solution: ' + r.solution : ''}</li>`;
+            // Extract any string values
+            const values = Object.entries(r)
+                .filter(([k, v]) => typeof v === 'string')
+                .map(([k, v]) => v)
+                .join(' - ');
+            return `<li>${values || 'Enrollment risk identified'}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
@@ -3728,7 +3784,25 @@ function dashboardApp() {
     ${(siteIntel.country_recommendations || []).length > 0 ? `
     <h3>Country Recommendations</h3>
     <ul>
-        ${siteIntel.country_recommendations.slice(0, 5).map(c => `<li><strong>${c.country || c.name || 'Country'}:</strong> ${c.rationale || c.recommendation || ''}</li>`).join('')}
+        ${siteIntel.country_recommendations.slice(0, 5).map(c => {
+            const country = c.country || c.name || 'Country';
+            // Try multiple possible field names for the recommendation content
+            const content = c.rationale || c.recommendation || c.reason || c.description || c.justification || c.notes || c.details || '';
+            const priority = c.priority ? ` [${c.priority}]` : '';
+            const sites = c.recommended_sites || c.sites ? ` (${c.recommended_sites || c.sites} sites)` : '';
+            const experience = c.experience_level || c.tier ? ` - ${c.experience_level || c.tier}` : '';
+
+            // If still no content, try to extract any meaningful data
+            let displayContent = content;
+            if (!displayContent) {
+                const otherValues = Object.entries(c)
+                    .filter(([k, v]) => typeof v === 'string' && !['country', 'name'].includes(k) && v.length < 150)
+                    .map(([k, v]) => v);
+                displayContent = otherValues.join('; ') || 'Recommended based on trial landscape analysis';
+            }
+
+            return `<li><strong>${country}${priority}:</strong> ${displayContent}${sites}${experience}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
@@ -3761,7 +3835,19 @@ function dashboardApp() {
     ${(competitive.strategic_recommendations || []).length > 0 ? `
     <h3>Strategic Recommendations</h3>
     <ul>
-        ${competitive.strategic_recommendations.slice(0, 5).map(r => `<li>${typeof r === 'string' ? r : r.recommendation || JSON.stringify(r)}</li>`).join('')}
+        ${competitive.strategic_recommendations.slice(0, 5).map(r => {
+            if (typeof r === 'string') return `<li>${r}</li>`;
+            if (r.recommendation) return `<li><strong>${r.recommendation}</strong>${r.rationale ? ': ' + r.rationale : ''}${r.priority ? ' [' + r.priority + ']' : ''}</li>`;
+            if (r.strategy) return `<li><strong>${r.strategy}</strong>${r.details ? ': ' + r.details : ''}</li>`;
+            if (r.action) return `<li><strong>${r.action}</strong>${r.reason ? ': ' + r.reason : ''}</li>`;
+            if (r.insight) return `<li><strong>${r.insight}</strong>${r.implication ? ': ' + r.implication : ''}</li>`;
+            // Extract meaningful string values
+            const values = Object.entries(r)
+                .filter(([k, v]) => typeof v === 'string' && v.length < 200)
+                .map(([k, v]) => v)
+                .join(' - ');
+            return `<li>${values || 'Strategic recommendation'}</li>`;
+        }).join('')}
     </ul>
     ` : ''}
 
