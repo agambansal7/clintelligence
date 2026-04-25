@@ -3340,7 +3340,7 @@ async def trial_search(input_data: TrialSearchInput):
             {"id": "age", "question": "What is your age?", "type": "number", "options": None, "required": True, "help_text": "Enter your current age in years"},
             {"id": "diagnosis", "question": f"Have you been diagnosed with {input_data.condition}?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": None},
             {"id": "treatment", "question": "Are you currently receiving any treatment?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": None},
-            {"id": "location", "question": "What is your ZIP code or city/state?", "type": "text", "options": None, "required": False, "help_text": "Enter ZIP code (e.g., 10001) or city, state (e.g., New York, NY) to find nearby trials"}
+            {"id": "location", "question": "What is your location?", "type": "text", "options": None, "required": False, "help_text": "Enter ZIP code, city/state (e.g., Boston, MA), or city/country (e.g., London, UK) to find nearby trials"}
         ]
 
         return {
@@ -3389,20 +3389,33 @@ async def trial_match(input_data: TrialMatchInput):
                 if patient_coords:
                     patient_lat, patient_lon = patient_coords
             else:
-                # Try to parse as "city, state" or just state abbreviation
+                # Try to parse as "city, state/country" or just state/country
                 parts = [p.strip() for p in patient_location_str.split(',')]
                 if len(parts) >= 2:
                     city = parts[0]
-                    state = parts[1][:2].upper() if len(parts[1]) >= 2 else parts[1].upper()
-                    # Use common city coordinates lookup
-                    city_coords = _get_city_coordinates(city, state)
+                    region = parts[1].strip()  # Could be state, country, or country code
+                    # Use city coordinates lookup (supports US and international)
+                    city_coords = _get_city_coordinates(city, region)
                     if city_coords:
                         patient_lat, patient_lon = city_coords
-                elif len(parts) == 1 and len(parts[0]) == 2:
-                    # State abbreviation only - use state center
-                    state_coords = _get_state_center_coordinates(parts[0].upper())
-                    if state_coords:
-                        patient_lat, patient_lon = state_coords
+                elif len(parts) == 1:
+                    single_input = parts[0].upper().strip()
+                    # Try as US state abbreviation first
+                    if len(single_input) == 2:
+                        state_coords = _get_state_center_coordinates(single_input)
+                        if state_coords:
+                            patient_lat, patient_lon = state_coords
+                    # Try as country name or code
+                    if not patient_lat:
+                        country_coords = _get_country_coordinates(single_input)
+                        if country_coords:
+                            patient_lat, patient_lon = country_coords
+                    # Try as city name alone (check major cities)
+                    if not patient_lat:
+                        for (city_name, region), coords in INTERNATIONAL_CITY_COORDINATES.items():
+                            if single_input == city_name:
+                                patient_lat, patient_lon = coords
+                                break
 
         # Search ClinicalTrials.gov API with geo fields
         base_url = "https://clinicaltrials.gov/api/v2/studies"
@@ -4104,27 +4117,254 @@ US_STATE_CENTERS = {
     "DC": (38.9072, -77.0369),
 }
 
+# International city coordinates
+INTERNATIONAL_CITY_COORDINATES = {
+    # Canada
+    ("TORONTO", "CANADA"): (43.6532, -79.3832),
+    ("TORONTO", "CA"): (43.6532, -79.3832),
+    ("TORONTO", "ON"): (43.6532, -79.3832),
+    ("VANCOUVER", "CANADA"): (49.2827, -123.1207),
+    ("VANCOUVER", "CA"): (49.2827, -123.1207),
+    ("VANCOUVER", "BC"): (49.2827, -123.1207),
+    ("MONTREAL", "CANADA"): (45.5017, -73.5673),
+    ("MONTREAL", "CA"): (45.5017, -73.5673),
+    ("MONTREAL", "QC"): (45.5017, -73.5673),
+    ("CALGARY", "CANADA"): (51.0447, -114.0719),
+    ("OTTAWA", "CANADA"): (45.4215, -75.6972),
+    # UK
+    ("LONDON", "UK"): (51.5074, -0.1278),
+    ("LONDON", "ENGLAND"): (51.5074, -0.1278),
+    ("LONDON", "GB"): (51.5074, -0.1278),
+    ("MANCHESTER", "UK"): (53.4808, -2.2426),
+    ("BIRMINGHAM", "UK"): (52.4862, -1.8904),
+    ("EDINBURGH", "UK"): (55.9533, -3.1883),
+    ("EDINBURGH", "SCOTLAND"): (55.9533, -3.1883),
+    ("GLASGOW", "UK"): (55.8642, -4.2518),
+    ("LIVERPOOL", "UK"): (53.4084, -2.9916),
+    ("OXFORD", "UK"): (51.7520, -1.2577),
+    ("CAMBRIDGE", "UK"): (52.2053, 0.1218),
+    # Germany
+    ("BERLIN", "GERMANY"): (52.5200, 13.4050),
+    ("BERLIN", "DE"): (52.5200, 13.4050),
+    ("MUNICH", "GERMANY"): (48.1351, 11.5820),
+    ("FRANKFURT", "GERMANY"): (50.1109, 8.6821),
+    ("HAMBURG", "GERMANY"): (53.5511, 9.9937),
+    ("COLOGNE", "GERMANY"): (50.9375, 6.9603),
+    # France
+    ("PARIS", "FRANCE"): (48.8566, 2.3522),
+    ("PARIS", "FR"): (48.8566, 2.3522),
+    ("LYON", "FRANCE"): (45.7640, 4.8357),
+    ("MARSEILLE", "FRANCE"): (43.2965, 5.3698),
+    ("NICE", "FRANCE"): (43.7102, 7.2620),
+    # Spain
+    ("MADRID", "SPAIN"): (40.4168, -3.7038),
+    ("MADRID", "ES"): (40.4168, -3.7038),
+    ("BARCELONA", "SPAIN"): (41.3851, 2.1734),
+    ("VALENCIA", "SPAIN"): (39.4699, -0.3763),
+    # Italy
+    ("ROME", "ITALY"): (41.9028, 12.4964),
+    ("ROME", "IT"): (41.9028, 12.4964),
+    ("MILAN", "ITALY"): (45.4642, 9.1900),
+    ("FLORENCE", "ITALY"): (43.7696, 11.2558),
+    # Netherlands
+    ("AMSTERDAM", "NETHERLANDS"): (52.3676, 4.9041),
+    ("AMSTERDAM", "NL"): (52.3676, 4.9041),
+    ("ROTTERDAM", "NETHERLANDS"): (51.9244, 4.4777),
+    # Belgium
+    ("BRUSSELS", "BELGIUM"): (50.8503, 4.3517),
+    ("BRUSSELS", "BE"): (50.8503, 4.3517),
+    # Switzerland
+    ("ZURICH", "SWITZERLAND"): (47.3769, 8.5417),
+    ("ZURICH", "CH"): (47.3769, 8.5417),
+    ("GENEVA", "SWITZERLAND"): (46.2044, 6.1432),
+    ("BASEL", "SWITZERLAND"): (47.5596, 7.5886),
+    # Australia
+    ("SYDNEY", "AUSTRALIA"): (-33.8688, 151.2093),
+    ("SYDNEY", "AU"): (-33.8688, 151.2093),
+    ("MELBOURNE", "AUSTRALIA"): (-37.8136, 144.9631),
+    ("BRISBANE", "AUSTRALIA"): (-27.4698, 153.0251),
+    ("PERTH", "AUSTRALIA"): (-31.9505, 115.8605),
+    # Japan
+    ("TOKYO", "JAPAN"): (35.6762, 139.6503),
+    ("TOKYO", "JP"): (35.6762, 139.6503),
+    ("OSAKA", "JAPAN"): (34.6937, 135.5023),
+    ("KYOTO", "JAPAN"): (35.0116, 135.7681),
+    # South Korea
+    ("SEOUL", "SOUTH KOREA"): (37.5665, 126.9780),
+    ("SEOUL", "KOREA"): (37.5665, 126.9780),
+    ("SEOUL", "KR"): (37.5665, 126.9780),
+    # China
+    ("BEIJING", "CHINA"): (39.9042, 116.4074),
+    ("BEIJING", "CN"): (39.9042, 116.4074),
+    ("SHANGHAI", "CHINA"): (31.2304, 121.4737),
+    ("HONG KONG", "CHINA"): (22.3193, 114.1694),
+    ("HONG KONG", "HK"): (22.3193, 114.1694),
+    # India
+    ("MUMBAI", "INDIA"): (19.0760, 72.8777),
+    ("MUMBAI", "IN"): (19.0760, 72.8777),
+    ("DELHI", "INDIA"): (28.7041, 77.1025),
+    ("NEW DELHI", "INDIA"): (28.6139, 77.2090),
+    ("BANGALORE", "INDIA"): (12.9716, 77.5946),
+    ("CHENNAI", "INDIA"): (13.0827, 80.2707),
+    # Brazil
+    ("SAO PAULO", "BRAZIL"): (-23.5505, -46.6333),
+    ("SAO PAULO", "BR"): (-23.5505, -46.6333),
+    ("RIO DE JANEIRO", "BRAZIL"): (-22.9068, -43.1729),
+    # Mexico
+    ("MEXICO CITY", "MEXICO"): (19.4326, -99.1332),
+    ("MEXICO CITY", "MX"): (19.4326, -99.1332),
+    # Israel
+    ("TEL AVIV", "ISRAEL"): (32.0853, 34.7818),
+    ("TEL AVIV", "IL"): (32.0853, 34.7818),
+    ("JERUSALEM", "ISRAEL"): (31.7683, 35.2137),
+    # Singapore
+    ("SINGAPORE", "SINGAPORE"): (1.3521, 103.8198),
+    ("SINGAPORE", "SG"): (1.3521, 103.8198),
+    # Other European
+    ("VIENNA", "AUSTRIA"): (48.2082, 16.3738),
+    ("VIENNA", "AT"): (48.2082, 16.3738),
+    ("COPENHAGEN", "DENMARK"): (55.6761, 12.5683),
+    ("COPENHAGEN", "DK"): (55.6761, 12.5683),
+    ("STOCKHOLM", "SWEDEN"): (59.3293, 18.0686),
+    ("STOCKHOLM", "SE"): (59.3293, 18.0686),
+    ("OSLO", "NORWAY"): (59.9139, 10.7522),
+    ("OSLO", "NO"): (59.9139, 10.7522),
+    ("HELSINKI", "FINLAND"): (60.1699, 24.9384),
+    ("HELSINKI", "FI"): (60.1699, 24.9384),
+    ("DUBLIN", "IRELAND"): (53.3498, -6.2603),
+    ("DUBLIN", "IE"): (53.3498, -6.2603),
+    ("WARSAW", "POLAND"): (52.2297, 21.0122),
+    ("WARSAW", "PL"): (52.2297, 21.0122),
+    ("PRAGUE", "CZECH REPUBLIC"): (50.0755, 14.4378),
+    ("PRAGUE", "CZ"): (50.0755, 14.4378),
+    ("BUDAPEST", "HUNGARY"): (47.4979, 19.0402),
+    ("BUDAPEST", "HU"): (47.4979, 19.0402),
+    ("LISBON", "PORTUGAL"): (38.7223, -9.1393),
+    ("LISBON", "PT"): (38.7223, -9.1393),
+    ("ATHENS", "GREECE"): (37.9838, 23.7275),
+    ("ATHENS", "GR"): (37.9838, 23.7275),
+}
 
-def _get_city_coordinates(city: str, state: str) -> tuple:
-    """Get coordinates for a city/state combination."""
-    if not city or not state:
+# Country center coordinates
+COUNTRY_COORDINATES = {
+    "CANADA": (56.1304, -106.3468),
+    "CA": (56.1304, -106.3468),  # Note: CA is also California - context matters
+    "UK": (55.3781, -3.4360),
+    "GB": (55.3781, -3.4360),
+    "UNITED KINGDOM": (55.3781, -3.4360),
+    "ENGLAND": (52.3555, -1.1743),
+    "GERMANY": (51.1657, 10.4515),
+    "DE": (51.1657, 10.4515),
+    "FRANCE": (46.2276, 2.2137),
+    "FR": (46.2276, 2.2137),
+    "SPAIN": (40.4637, -3.7492),
+    "ES": (40.4637, -3.7492),
+    "ITALY": (41.8719, 12.5674),
+    "IT": (41.8719, 12.5674),
+    "NETHERLANDS": (52.1326, 5.2913),
+    "NL": (52.1326, 5.2913),
+    "BELGIUM": (50.5039, 4.4699),
+    "BE": (50.5039, 4.4699),
+    "SWITZERLAND": (46.8182, 8.2275),
+    "CH": (46.8182, 8.2275),
+    "AUSTRIA": (47.5162, 14.5501),
+    "AT": (47.5162, 14.5501),
+    "AUSTRALIA": (-25.2744, 133.7751),
+    "AU": (-25.2744, 133.7751),
+    "JAPAN": (36.2048, 138.2529),
+    "JP": (36.2048, 138.2529),
+    "SOUTH KOREA": (35.9078, 127.7669),
+    "KOREA": (35.9078, 127.7669),
+    "KR": (35.9078, 127.7669),
+    "CHINA": (35.8617, 104.1954),
+    "CN": (35.8617, 104.1954),
+    "INDIA": (20.5937, 78.9629),
+    "IN": (20.5937, 78.9629),
+    "BRAZIL": (-14.2350, -51.9253),
+    "BR": (-14.2350, -51.9253),
+    "MEXICO": (23.6345, -102.5528),
+    "MX": (23.6345, -102.5528),
+    "ISRAEL": (31.0461, 34.8516),
+    "IL": (31.0461, 34.8516),
+    "SINGAPORE": (1.3521, 103.8198),
+    "SG": (1.3521, 103.8198),
+    "SWEDEN": (60.1282, 18.6435),
+    "SE": (60.1282, 18.6435),
+    "NORWAY": (60.4720, 8.4689),
+    "NO": (60.4720, 8.4689),
+    "DENMARK": (56.2639, 9.5018),
+    "DK": (56.2639, 9.5018),
+    "FINLAND": (61.9241, 25.7482),
+    "FI": (61.9241, 25.7482),
+    "IRELAND": (53.1424, -7.6921),
+    "IE": (53.1424, -7.6921),
+    "POLAND": (51.9194, 19.1451),
+    "PL": (51.9194, 19.1451),
+    "CZECH REPUBLIC": (49.8175, 15.4730),
+    "CZ": (49.8175, 15.4730),
+    "HUNGARY": (47.1625, 19.5033),
+    "HU": (47.1625, 19.5033),
+    "PORTUGAL": (39.3999, -8.2245),
+    "PT": (39.3999, -8.2245),
+    "GREECE": (39.0742, 21.8243),
+    "GR": (39.0742, 21.8243),
+    "RUSSIA": (61.5240, 105.3188),
+    "RU": (61.5240, 105.3188),
+    "SOUTH AFRICA": (-30.5595, 22.9375),
+    "ZA": (-30.5595, 22.9375),
+    "NEW ZEALAND": (-40.9006, 174.8860),
+    "NZ": (-40.9006, 174.8860),
+    "ARGENTINA": (-38.4161, -63.6167),
+    "AR": (-38.4161, -63.6167),
+    "CHILE": (-35.6751, -71.5430),
+    "CL": (-35.6751, -71.5430),
+    "TAIWAN": (23.6978, 120.9605),
+    "TW": (23.6978, 120.9605),
+    "HONG KONG": (22.3193, 114.1694),
+    "HK": (22.3193, 114.1694),
+    "UAE": (23.4241, 53.8478),
+    "UNITED ARAB EMIRATES": (23.4241, 53.8478),
+    "SAUDI ARABIA": (23.8859, 45.0792),
+    "SA": (23.8859, 45.0792),
+}
+
+
+def _get_city_coordinates(city: str, state_or_country: str) -> tuple:
+    """Get coordinates for a city/state or city/country combination."""
+    if not city or not state_or_country:
         return None
 
     city_upper = city.upper().strip()
-    state_upper = state.upper().strip()[:2]
+    region_upper = state_or_country.upper().strip()
 
-    # Direct lookup
-    key = (city_upper, state_upper)
+    # Try US city/state first
+    key = (city_upper, region_upper[:2])
     if key in US_CITY_COORDINATES:
         return US_CITY_COORDINATES[key]
 
-    # Try partial match
+    # Try international city/country
+    int_key = (city_upper, region_upper)
+    if int_key in INTERNATIONAL_CITY_COORDINATES:
+        return INTERNATIONAL_CITY_COORDINATES[int_key]
+
+    # Try partial match for US
     for (c, s), coords in US_CITY_COORDINATES.items():
-        if s == state_upper and city_upper in c:
+        if s == region_upper[:2] and city_upper in c:
             return coords
 
-    # Fall back to state center
-    return _get_state_center_coordinates(state_upper)
+    # Try partial match for international
+    for (c, country), coords in INTERNATIONAL_CITY_COORDINATES.items():
+        if region_upper in country or country in region_upper:
+            if city_upper in c or c in city_upper:
+                return coords
+
+    # Fall back to US state center
+    state_coords = _get_state_center_coordinates(region_upper[:2])
+    if state_coords:
+        return state_coords
+
+    # Fall back to country center
+    return _get_country_coordinates(region_upper)
 
 
 def _get_state_center_coordinates(state: str) -> tuple:
@@ -4134,6 +4374,15 @@ def _get_state_center_coordinates(state: str) -> tuple:
 
     state_upper = state.upper().strip()[:2]
     return US_STATE_CENTERS.get(state_upper)
+
+
+def _get_country_coordinates(country: str) -> tuple:
+    """Get center coordinates for a country."""
+    if not country:
+        return None
+
+    country_upper = country.upper().strip()
+    return COUNTRY_COORDINATES.get(country_upper)
 
 
 def calculate_distance_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
