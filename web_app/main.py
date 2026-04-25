@@ -557,13 +557,24 @@ async def extract_protocol_with_claude(protocol_text: str) -> Dict:
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-    prompt = f"""Analyze this clinical trial protocol and extract key information in JSON format.
+    prompt = f"""Analyze this document and determine if it is a clinical trial protocol. Then extract key information.
 
-Protocol Text:
+Document Text:
 {protocol_text[:15000]}
 
-Return a JSON object with these fields:
+FIRST: Determine if this document is actually a clinical trial protocol or a related clinical research document.
+A valid clinical trial protocol should contain elements like: study objectives, patient population, intervention details, endpoints, inclusion/exclusion criteria, study design, etc.
+
+If the document is NOT a clinical trial protocol (e.g., a resume/CV, business document, random text, news article, etc.), return:
 {{
+    "is_valid_protocol": false,
+    "document_type": "what type of document this actually is (e.g., 'resume', 'business letter', 'news article', etc.)",
+    "rejection_reason": "brief explanation of why this is not a clinical trial protocol"
+}}
+
+If the document IS a valid clinical trial protocol or research document, return:
+{{
+    "is_valid_protocol": true,
     "condition": "primary disease/condition being studied",
     "therapeutic_area": "oncology, cardiology, neurology, etc.",
     "phase": "Phase 1, Phase 2, Phase 3, or Phase 4",
@@ -2278,6 +2289,15 @@ async def analyze_protocol(input_data: ProtocolInput):
         extracted_dict = await extract_protocol_with_claude(input_data.protocol_text)
         print(f"Extracted: {extracted_dict.get('condition')}, {extracted_dict.get('intervention_name')}")
 
+        # Validate that this is actually a clinical trial protocol
+        if not extracted_dict.get('is_valid_protocol', True):
+            document_type = extracted_dict.get('document_type', 'unknown document')
+            rejection_reason = extracted_dict.get('rejection_reason', 'This does not appear to be a clinical trial protocol.')
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid document: This appears to be a {document_type}. {rejection_reason} Please upload a clinical trial protocol document."
+            )
+
         # Step 2: Search for candidate trials (API first, database backup)
         condition = extracted_dict.get("condition", "")
         intervention = extracted_dict.get("intervention_name", "")
@@ -2370,6 +2390,17 @@ async def analyze_protocol_v2(request: Request, input_data: ProtocolInputV2):
         print(f"Extracted condition: {extracted_dict.get('condition')}")
         print(f"Extracted intervention: {extracted_dict.get('intervention_name')}")
         print(f"Extracted phase: {extracted_dict.get('phase')}")
+
+        # Validate that this is actually a clinical trial protocol
+        if not extracted_dict.get('is_valid_protocol', True):
+            document_type = extracted_dict.get('document_type', 'unknown document')
+            rejection_reason = extracted_dict.get('rejection_reason', 'This does not appear to be a clinical trial protocol.')
+            return {
+                "success": False,
+                "error": f"Invalid document: This appears to be a {document_type}. {rejection_reason} Please upload a clinical trial protocol document.",
+                "document_type": document_type,
+                "is_valid_protocol": False
+            }
 
         # Step 2: Search for candidate trials (database first, API fallback)
         condition = extracted_dict.get("condition", "")
@@ -3059,6 +3090,24 @@ async def upload_and_analyze_pdf(
                 status_code=400,
                 content={"success": False, "error": "Could not extract sufficient text from PDF"}
             )
+
+        # Validate that this is actually a clinical trial protocol
+        try:
+            validation_result = await extract_protocol_with_claude(extracted_text)
+            if not validation_result.get('is_valid_protocol', True):
+                document_type = validation_result.get('document_type', 'unknown document')
+                rejection_reason = validation_result.get('rejection_reason', 'This does not appear to be a clinical trial protocol.')
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "error": f"Invalid document: This appears to be a {document_type}. {rejection_reason}",
+                        "document_type": document_type,
+                        "is_valid_protocol": False
+                    }
+                )
+        except Exception as validation_error:
+            print(f"Protocol validation error (continuing anyway): {validation_error}")
 
         # Run full analysis
         db = get_database()
