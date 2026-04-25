@@ -3548,6 +3548,52 @@ async def get_stats():
 
 
 # ============== PATIENT TRIAL MATCHING API ==============
+
+# Common non-condition search terms that should be clarified
+NON_CONDITION_TERMS = {
+    "vaccine": "vaccines (e.g., 'COVID-19', 'flu prevention', 'HPV')",
+    "vaccine trial": "vaccines (e.g., 'COVID-19 vaccine', 'influenza', 'RSV')",
+    "drug trial": "a specific condition (e.g., 'diabetes', 'hypertension', 'depression')",
+    "clinical trial": "a specific condition you want to find trials for",
+    "cancer drug": "a specific cancer type (e.g., 'breast cancer', 'lung cancer', 'leukemia')",
+    "new treatment": "a specific condition you're seeking treatment for",
+    "experimental": "a specific condition (e.g., 'Alzheimer's disease', 'multiple sclerosis')",
+    "study": "a specific medical condition",
+    "research": "a specific disease or condition",
+    "trial": "a specific medical condition",
+    "medicine": "a specific condition you need medicine for",
+    "therapy": "a specific condition (e.g., 'depression', 'anxiety', 'PTSD')",
+    "gene therapy": "a specific genetic condition (e.g., 'sickle cell disease', 'hemophilia')",
+    "immunotherapy": "a specific condition (e.g., 'melanoma', 'lung cancer', 'lymphoma')",
+}
+
+
+def check_search_intent(search_term: str) -> dict:
+    """Check if the search term is a valid medical condition or needs clarification."""
+    lower_term = search_term.lower().strip()
+
+    # Check for exact matches or partial matches with non-condition terms
+    for term, suggestion in NON_CONDITION_TERMS.items():
+        if lower_term == term or lower_term.endswith(f" {term}") or lower_term.startswith(f"{term} "):
+            return {
+                "is_valid_condition": False,
+                "search_term": search_term,
+                "suggestion": suggestion,
+                "message": f"'{search_term}' is a type of trial, not a medical condition. Please search for {suggestion}."
+            }
+
+    # Check for very short or generic terms
+    if len(lower_term) < 3:
+        return {
+            "is_valid_condition": False,
+            "search_term": search_term,
+            "suggestion": "a more specific medical condition",
+            "message": "Please enter a more specific medical condition (e.g., 'Type 2 Diabetes', 'Breast Cancer')."
+        }
+
+    return {"is_valid_condition": True, "search_term": search_term}
+
+
 @app.post("/api/trial-search")
 async def trial_search(input_data: TrialSearchInput):
     """
@@ -3555,6 +3601,16 @@ async def trial_search(input_data: TrialSearchInput):
     """
     if not input_data.condition or len(input_data.condition.strip()) < 2:
         raise HTTPException(status_code=400, detail="Please enter a condition to search for")
+
+    # Validate search intent
+    intent_check = check_search_intent(input_data.condition)
+    if not intent_check.get("is_valid_condition", True):
+        return {
+            "success": False,
+            "error": intent_check.get("message"),
+            "suggestion": intent_check.get("suggestion"),
+            "is_invalid_search_term": True
+        }
 
     try:
         # Search ClinicalTrials.gov API for recruiting trials
@@ -3608,10 +3664,24 @@ async def trial_search(input_data: TrialSearchInput):
                 "questions": []
             }
 
-        # Generate basic screening questions
+        # Extract the most common actual condition from trials found
+        all_conditions = []
+        for t in trials:
+            if t.get("conditions"):
+                all_conditions.extend([c.strip() for c in t["conditions"].split(",")])
+
+        # Use the most common condition from results, or fall back to search term
+        if all_conditions:
+            from collections import Counter
+            condition_counts = Counter(all_conditions)
+            primary_condition = condition_counts.most_common(1)[0][0]
+        else:
+            primary_condition = input_data.condition
+
+        # Generate contextual screening questions
         questions = [
             {"id": "age", "question": "What is your age?", "type": "number", "options": None, "required": True, "help_text": "Enter your current age in years"},
-            {"id": "diagnosis", "question": f"Have you been diagnosed with {input_data.condition}?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": None},
+            {"id": "diagnosis", "question": f"Do you have or are you at risk for {primary_condition}?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": f"Select 'Yes' if you have been diagnosed with {primary_condition} or a related condition"},
             {"id": "treatment", "question": "Are you currently receiving any treatment?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": None},
             {"id": "location", "question": "What is your location?", "type": "text", "options": None, "required": False, "help_text": "Enter ZIP code, city/state (e.g., Boston, MA), or city/country (e.g., London, UK) to find nearby trials"}
         ]
@@ -3620,6 +3690,7 @@ async def trial_search(input_data: TrialSearchInput):
             "success": True,
             "trial_count": len(trials),
             "condition": input_data.condition,
+            "primary_condition": primary_condition,
             "trials": trials,
             "questions": questions
         }
