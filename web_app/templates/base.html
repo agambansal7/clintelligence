@@ -423,48 +423,52 @@
                 </a>
 
                 <!-- Navigation Links -->
-                <div class="flex items-center gap-2">
-                    <!-- Protocol Analysis & Dashboard -->
-                    <div class="hidden md:flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/30 rounded-full">
-                        <a href="/" class="px-4 py-2 rounded-full text-sm font-medium transition-all {% if page == 'home' %}bg-primary-500 text-white shadow-md{% else %}text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800/50{% endif %}">
-                            Protocol Analysis
-                        </a>
-                        <a href="/dashboard" class="px-4 py-2 rounded-full text-sm font-medium transition-all {% if page == 'dashboard' %}bg-primary-500 text-white shadow-md{% else %}text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800/50{% endif %}">
-                            Dashboard
-                        </a>
-                    </div>
+                <div x-data="navAuth()" x-init="init()" class="flex items-center gap-2">
+                    <!-- Protocol Analysis & Dashboard (show only when logged in) -->
+                    <template x-if="isLoggedIn">
+                        <div class="hidden md:flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/30 rounded-full">
+                            <a href="/analyze" class="px-4 py-2 rounded-full text-sm font-medium transition-all {% if page == 'analyze' %}bg-primary-500 text-white shadow-md{% else %}text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800/50{% endif %}">
+                                Protocol Analysis
+                            </a>
+                            <a href="/dashboard" class="px-4 py-2 rounded-full text-sm font-medium transition-all {% if page == 'dashboard' %}bg-primary-500 text-white shadow-md{% else %}text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800/50{% endif %}">
+                                Dashboard
+                            </a>
+                        </div>
+                    </template>
 
-                    <!-- Find Trials - Distinct Color -->
-                    <a href="/find-trials" class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all {% if page == 'find_trials' %}bg-violet-500 text-white shadow-lg shadow-violet-500/30{% else %}bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/50{% endif %}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        Find Trials
-                    </a>
+                    <!-- Find Trials (show only when logged in) -->
+                    <template x-if="isLoggedIn">
+                        <a href="/find-trials" class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all {% if page == 'find_trials' %}bg-violet-500 text-white shadow-lg shadow-violet-500/30{% else %}bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/50{% endif %}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            Find Trials
+                        </a>
+                    </template>
 
-                    <!-- About -->
+                    <!-- About (always visible) -->
                     <a href="/about" class="px-4 py-2 rounded-full text-sm font-medium transition-all {% if page == 'about' %}bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
                         About
                     </a>
 
                     <!-- Auth Buttons -->
-                    <div x-data="{ user: null, showMenu: false }" x-init="user = JSON.parse(localStorage.getItem('user') || 'null')" class="relative">
+                    <div class="relative">
                         <!-- Not Logged In -->
-                        <template x-if="!user">
-                            <a href="/login" class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600 shadow-md transition-all">
+                        <template x-if="!isLoggedIn">
+                            <a href="/auth" class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600 shadow-md transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                                 </svg>
-                                Login
+                                Sign In
                             </a>
                         </template>
 
                         <!-- Logged In -->
-                        <template x-if="user">
+                        <template x-if="isLoggedIn">
                             <div>
                                 <button @click="showMenu = !showMenu" class="flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800/50 transition-all">
-                                    <div class="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold" x-text="user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'"></div>
-                                    <span class="text-sm font-medium hidden sm:inline" x-text="user.full_name ? user.full_name.split(' ')[0] : 'User'"></span>
+                                    <div class="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold" x-text="user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'"></div>
+                                    <span class="text-sm font-medium hidden sm:inline" x-text="user?.full_name ? user.full_name.split(' ')[0] : 'User'"></span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
@@ -473,10 +477,10 @@
                                 <!-- Dropdown Menu -->
                                 <div x-show="showMenu" @click.away="showMenu = false" x-transition class="absolute right-0 mt-2 w-48 bg-white dark:bg-navy-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-2 z-50">
                                     <div class="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
-                                        <p class="text-sm font-medium text-navy-900 dark:text-white" x-text="user.full_name"></p>
-                                        <p class="text-xs text-slate-500" x-text="user.email"></p>
+                                        <p class="text-sm font-medium text-navy-900 dark:text-white" x-text="user?.full_name || 'User'"></p>
+                                        <p class="text-xs text-slate-500" x-text="user?.email || ''"></p>
                                     </div>
-                                    <button @click="localStorage.removeItem('authToken'); localStorage.removeItem('user'); window.location.href = '/login';" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                                    <button @click="signOut()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                         </svg>
@@ -590,6 +594,50 @@
             Chart.defaults.plugins.tooltip.titleFont = { weight: '600' };
             Chart.defaults.plugins.tooltip.padding = 12;
             Chart.defaults.plugins.tooltip.cornerRadius = 8;
+        }
+
+        // Navigation auth state management
+        function navAuth() {
+            return {
+                isLoggedIn: false,
+                user: null,
+                showMenu: false,
+
+                init() {
+                    // Check auth state from localStorage
+                    const token = localStorage.getItem('auth_token');
+                    const userStr = localStorage.getItem('auth_user');
+
+                    if (token && userStr) {
+                        try {
+                            this.user = JSON.parse(userStr);
+                            this.isLoggedIn = true;
+                        } catch (e) {
+                            this.clearAuth();
+                        }
+                    }
+
+                    // Check if this page requires auth
+                    {% if require_auth %}
+                    if (!this.isLoggedIn) {
+                        window.location.href = '/auth';
+                        return;
+                    }
+                    {% endif %}
+                },
+
+                signOut() {
+                    this.clearAuth();
+                    window.location.href = '/';
+                },
+
+                clearAuth() {
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('auth_user');
+                    this.isLoggedIn = false;
+                    this.user = null;
+                }
+            };
         }
     </script>
 

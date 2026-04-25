@@ -48,6 +48,82 @@ if static_dir.exists() and any(static_dir.iterdir()):
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
+# ============== TOKEN USAGE TRACKING ==============
+class TokenUsageTracker:
+    """Track token usage and costs across multiple API calls."""
+
+    # Pricing per 1M tokens (as of 2025)
+    CLAUDE_SONNET_INPUT_PRICE = 3.00  # $3 per 1M input tokens
+    CLAUDE_SONNET_OUTPUT_PRICE = 15.00  # $15 per 1M output tokens
+    OPENAI_EMBEDDING_PRICE = 0.02  # $0.02 per 1M tokens for text-embedding-3-small
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        """Reset all counters."""
+        self.claude_input_tokens = 0
+        self.claude_output_tokens = 0
+        self.openai_embedding_tokens = 0
+        self.api_calls = []
+
+    def add_claude_usage(self, input_tokens: int, output_tokens: int, function_name: str = ""):
+        """Add Claude API usage."""
+        self.claude_input_tokens += input_tokens
+        self.claude_output_tokens += output_tokens
+        self.api_calls.append({
+            "type": "claude",
+            "function": function_name,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens
+        })
+
+    def add_openai_embedding_usage(self, tokens: int, batch_size: int = 1):
+        """Add OpenAI embedding usage."""
+        self.openai_embedding_tokens += tokens
+        self.api_calls.append({
+            "type": "openai_embedding",
+            "tokens": tokens,
+            "batch_size": batch_size
+        })
+
+    def calculate_cost(self) -> Dict[str, Any]:
+        """Calculate total cost breakdown."""
+        claude_input_cost = (self.claude_input_tokens / 1_000_000) * self.CLAUDE_SONNET_INPUT_PRICE
+        claude_output_cost = (self.claude_output_tokens / 1_000_000) * self.CLAUDE_SONNET_OUTPUT_PRICE
+        claude_total = claude_input_cost + claude_output_cost
+
+        openai_cost = (self.openai_embedding_tokens / 1_000_000) * self.OPENAI_EMBEDDING_PRICE
+
+        total_cost = claude_total + openai_cost
+
+        return {
+            "claude": {
+                "input_tokens": self.claude_input_tokens,
+                "output_tokens": self.claude_output_tokens,
+                "total_tokens": self.claude_input_tokens + self.claude_output_tokens,
+                "input_cost": round(claude_input_cost, 4),
+                "output_cost": round(claude_output_cost, 4),
+                "total_cost": round(claude_total, 4)
+            },
+            "openai_embedding": {
+                "tokens": self.openai_embedding_tokens,
+                "cost": round(openai_cost, 4)
+            },
+            "total": {
+                "tokens": self.claude_input_tokens + self.claude_output_tokens + self.openai_embedding_tokens,
+                "cost": round(total_cost, 4),
+                "cost_formatted": f"${total_cost:.4f}"
+            },
+            "api_calls_count": len(self.api_calls),
+            "breakdown": self.api_calls
+        }
+
+
+# Global token tracker (will be reset for each analysis)
+_token_tracker = TokenUsageTracker()
+
+
 # Startup event to ensure database tables exist
 @app.on_event("startup")
 async def startup_event():
@@ -193,7 +269,7 @@ async def search_trials_from_database(condition: str, intervention: str = None, 
 
 
 # ============== OPENAI EMBEDDINGS FOR SEMANTIC MATCHING ==============
-def get_openai_embedding(text: str) -> List[float]:
+def get_openai_embedding(text: str, track_usage: bool = True) -> List[float]:
     """Generate embedding using OpenAI text-embedding-3-small."""
     from openai import OpenAI
 
@@ -208,10 +284,15 @@ def get_openai_embedding(text: str) -> List[float]:
         model="text-embedding-3-small",
         input=text
     )
+
+    # Track token usage
+    if track_usage and hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_openai_embedding_usage(response.usage.total_tokens, batch_size=1)
+
     return response.data[0].embedding
 
 
-def get_openai_embeddings_batch(texts: List[str]) -> List[List[float]]:
+def get_openai_embeddings_batch(texts: List[str], track_usage: bool = True) -> List[List[float]]:
     """Generate embeddings for multiple texts."""
     from openai import OpenAI
 
@@ -226,6 +307,11 @@ def get_openai_embeddings_batch(texts: List[str]) -> List[List[float]]:
         model="text-embedding-3-small",
         input=texts
     )
+
+    # Track token usage
+    if track_usage and hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_openai_embedding_usage(response.usage.total_tokens, batch_size=len(texts))
+
     return [item.embedding for item in response.data]
 
 
@@ -497,6 +583,14 @@ Return ONLY valid JSON, no other text."""
         messages=[{"role": "user", "content": prompt}]
     )
 
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "extract_protocol_with_claude"
+        )
+
     # Parse JSON from response
     text = response.content[0].text
     # Try to extract JSON if wrapped in markdown
@@ -609,6 +703,14 @@ Return ONLY valid JSON, no other text."""
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}]
     )
+
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_similar_trials_with_claude"
+        )
 
     text = response.content[0].text
     if "```json" in text:
@@ -765,6 +867,14 @@ Return ONLY valid JSON, no other text."""
         max_tokens=2500,
         messages=[{"role": "user", "content": prompt}]
     )
+
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_enrollment_forecast_with_claude"
+        )
 
     text = response.content[0].text
     if "```json" in text:
@@ -945,6 +1055,14 @@ Return ONLY valid JSON, no other text."""
         messages=[{"role": "user", "content": prompt}]
     )
 
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_detailed_risks_with_claude"
+        )
+
     text = response.content[0].text
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0]
@@ -1092,6 +1210,14 @@ Return ONLY valid JSON, no other text."""
         max_tokens=3500,
         messages=[{"role": "user", "content": prompt}]
     )
+
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_protocol_optimization_with_claude"
+        )
 
     text = response.content[0].text
     if "```json" in text:
@@ -1244,6 +1370,14 @@ Return ONLY valid JSON, no other text."""
         max_tokens=3500,
         messages=[{"role": "user", "content": prompt}]
     )
+
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_eligibility_with_claude"
+        )
 
     text = response.content[0].text
     if "```json" in text:
@@ -1420,6 +1554,14 @@ Return ONLY valid JSON, no other text."""
         messages=[{"role": "user", "content": prompt}]
     )
 
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_endpoints_with_claude"
+        )
+
     text = response.content[0].text
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0]
@@ -1552,6 +1694,14 @@ Return ONLY valid JSON, no other text."""
         max_tokens=4000,
         messages=[{"role": "user", "content": prompt}]
     )
+
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_amendment_risk_with_claude"
+        )
 
     text = response.content[0].text
     if "```json" in text:
@@ -1713,6 +1863,14 @@ Return ONLY valid JSON, no other text."""
         max_tokens=4000,
         messages=[{"role": "user", "content": prompt}]
     )
+
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_site_intelligence_with_claude"
+        )
 
     text = response.content[0].text
     if "```json" in text:
@@ -1884,6 +2042,14 @@ Return ONLY valid JSON, no other text."""
         messages=[{"role": "user", "content": prompt}]
     )
 
+    # Track token usage
+    if hasattr(response, 'usage') and response.usage:
+        _token_tracker.add_claude_usage(
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            "analyze_competitive_landscape_with_claude"
+        )
+
     text = response.content[0].text
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0]
@@ -1957,6 +2123,14 @@ Be precise and analytical. Higher scores mean more similarity to the protocol.""
             messages=[{"role": "user", "content": prompt}]
         )
 
+        # Track token usage
+        if hasattr(response, 'usage') and response.usage:
+            _token_tracker.add_claude_usage(
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                "score_trial_dimensions_with_claude"
+            )
+
         text = response.content[0].text.strip()
 
         # Extract JSON from response
@@ -1988,30 +2162,58 @@ Be precise and analytical. Higher scores mean more similarity to the protocol.""
 
 
 # ============== PAGES ==============
+
+def check_auth_cookie(request: Request) -> bool:
+    """Check if user has valid auth token in cookie or will check via JS."""
+    # We'll let the frontend handle the auth check and redirect
+    # This is a soft check - actual API calls require valid tokens
+    return True
+
+
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    """Home page - Protocol Entry."""
+async def landing(request: Request):
+    """Public landing page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="landing.html",
+        context={"page": "landing"}
+    )
+
+
+@app.get("/auth", response_class=HTMLResponse)
+async def auth_page(request: Request):
+    """Authentication page (login/register)."""
+    return templates.TemplateResponse(
+        request=request,
+        name="auth.html",
+        context={"page": "auth"}
+    )
+
+
+@app.get("/analyze", response_class=HTMLResponse)
+async def analyze_page(request: Request):
+    """Protocol entry/analysis page (requires auth)."""
     stats = get_db_stats()
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"page": "home", "stats": stats}
+        context={"page": "analyze", "stats": stats, "require_auth": True}
     )
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """Analysis Dashboard."""
+    """Analysis Dashboard (requires auth)."""
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"page": "dashboard"}
+        context={"page": "dashboard", "require_auth": True}
     )
 
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
-    """About page."""
+    """About page (public)."""
     return templates.TemplateResponse(
         request=request,
         name="about.html",
@@ -2038,7 +2240,7 @@ async def find_trials(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="find_trials.html",
-        context={"page": "find_trials", "recruiting_count": recruiting_count}
+        context={"page": "find_trials", "recruiting_count": recruiting_count, "require_auth": True}
     )
 
 
@@ -2145,6 +2347,9 @@ async def analyze_protocol_v2(request: Request, input_data: ProtocolInputV2):
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured for semantic matching")
 
     try:
+        # Reset token tracker for this analysis
+        _token_tracker.reset()
+
         # Step 1: Extract protocol information using Claude
         print("Step 1: Extracting protocol structure with Claude...")
         extracted_dict = await extract_protocol_with_claude(input_data.protocol_text)
@@ -2684,6 +2889,11 @@ async def analyze_protocol_v2(request: Request, input_data: ProtocolInputV2):
 
         # Add saved_analysis_id to response
         full_result["saved_analysis_id"] = saved_analysis_id
+
+        # Add token usage data to response
+        full_result["token_usage"] = _token_tracker.calculate_cost()
+        print(f"Total API cost: {full_result['token_usage']['total']['cost_formatted']}")
+
         return full_result
 
     except Exception as e:

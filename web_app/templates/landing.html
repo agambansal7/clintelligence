@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clintelligence - AI-Powered Clinical Trial Intelligence</title>
+    <meta name="description" content="AI-powered clinical trial protocol intelligence. Comprehensive protocol analysis and patient trial matching.">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#FFF7ED', 100: '#FFEDD5', 200: '#FED7AA', 300: '#FDBA74',
+                            400: '#FB923C', 500: '#F45900', 600: '#EA580C', 700: '#C2410C',
+                            800: '#9A3412', 900: '#7C2D12',
+                        },
+                        secondary: {
+                            50: '#EEF2FF', 100: '#E0E7FF', 200: '#C7D2FE', 300: '#A5B4FC',
+                            400: '#818CF8', 500: '#314DD8', 600: '#4F46E5', 700: '#4338CA',
+                            800: '#3730A3', 900: '#312E81',
+                        },
+                        navy: { 700: '#334155', 800: '#1E293B', 900: '#0F172A', 950: '#020617' }
+                    },
+                    fontFamily: {
+                        'display': ['Plus Jakarta Sans', 'sans-serif'],
+                        'body': ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="h-full bg-slate-50">
+<div x-data="landingPage()" x-init="init()" class="min-h-screen">
+
+    <!-- Hero Section -->
+    <section class="relative overflow-hidden bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 pt-20 pb-32">
+        <!-- Background Pattern -->
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%234f46e5\" fill-opacity=\"0.05\"%3E%3Ccircle cx=\"30\" cy=\"30\" r=\"2\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>
+
+        <!-- Gradient Orbs -->
+        <div class="absolute top-20 left-10 w-72 h-72 bg-primary-500/20 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 right-10 w-96 h-96 bg-secondary-500/20 rounded-full blur-3xl"></div>
+
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <!-- Badge -->
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-sm font-medium mb-8">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Powered by Advanced AI
+                </div>
+
+                <!-- Headline -->
+                <h1 class="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+                    Transform Clinical Trial
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-secondary-400"> Intelligence</span>
+                </h1>
+
+                <p class="text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed">
+                    Analyze protocols against thousands of historical trials. Predict risks, optimize designs,
+                    and accelerate your path to approval with AI-powered insights.
+                </p>
+
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <a href="/auth" class="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-display font-bold text-lg rounded-xl transition-all shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 flex items-center justify-center gap-2">
+                        <span>Get Started Free</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                        </svg>
+                    </a>
+                    <a href="/auth?mode=login" class="w-full sm:w-auto px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-display font-semibold text-lg rounded-xl transition-all border border-white/20 flex items-center justify-center gap-2">
+                        <span>Sign In</span>
+                    </a>
+                </div>
+
+                <!-- Trust Indicators -->
+                <div class="mt-12 flex flex-wrap items-center justify-center gap-8 text-slate-400 text-sm">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                        <span>HIPAA Compliant</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                        <span>Enterprise Security</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span>500K+ Trials Analyzed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Visual -->
+            <div class="mt-16 relative">
+                <div class="absolute inset-0 bg-gradient-to-t from-navy-900 via-transparent to-transparent z-10 pointer-events-none"></div>
+                <div class="bg-navy-800/50 backdrop-blur-sm rounded-2xl border border-navy-700 p-6 shadow-2xl">
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <!-- Stat Card 1 -->
+                        <div class="bg-navy-700/50 rounded-xl p-5 text-center">
+                            <div class="text-4xl font-bold text-primary-400 mb-2">85%</div>
+                            <div class="text-slate-300 text-sm">Risk Prediction Accuracy</div>
+                        </div>
+                        <!-- Stat Card 2 -->
+                        <div class="bg-navy-700/50 rounded-xl p-5 text-center">
+                            <div class="text-4xl font-bold text-emerald-400 mb-2">40%</div>
+                            <div class="text-slate-300 text-sm">Faster Protocol Optimization</div>
+                        </div>
+                        <!-- Stat Card 3 -->
+                        <div class="bg-navy-700/50 rounded-xl p-5 text-center">
+                            <div class="text-4xl font-bold text-secondary-400 mb-2">500K+</div>
+                            <div class="text-slate-300 text-sm">Historical Trials Database</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-24 bg-slate-50 dark:bg-navy-900">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-3xl md:text-4xl font-bold text-navy-900 dark:text-white mb-4">
+                    Comprehensive Trial Intelligence
+                </h2>
+                <p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                    Everything you need to design successful clinical trials and connect patients with the right studies.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Feature 1: Protocol Analysis -->
+                <div class="bg-white dark:bg-navy-800 rounded-2xl p-8 shadow-lg border border-slate-200 dark:border-navy-700 hover:shadow-xl transition-shadow">
+                    <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-display text-xl font-bold text-navy-900 dark:text-white mb-3">Protocol Analysis</h3>
+                    <p class="text-slate-600 dark:text-slate-400 mb-6">
+                        Upload your protocol and get instant AI-powered analysis comparing against similar historical trials.
+                        Identify risks, optimize endpoints, and predict success rates.
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Risk Assessment & Mitigation
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Amendment Prediction
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Enrollment Forecasting
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Site Intelligence
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Feature 2: Patient Trial Matching -->
+                <div class="bg-white dark:bg-navy-800 rounded-2xl p-8 shadow-lg border border-slate-200 dark:border-navy-700 hover:shadow-xl transition-shadow">
+                    <div class="w-14 h-14 bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-display text-xl font-bold text-navy-900 dark:text-white mb-3">Patient Trial Matching</h3>
+                    <p class="text-slate-600 dark:text-slate-400 mb-6">
+                        Help patients find clinical trials that match their specific conditions and eligibility criteria.
+                        AI-powered screening and location-based matching.
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Intelligent Eligibility Screening
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Location-Based Matching
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Match Score Ranking
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Direct Site Contact
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-24 bg-white dark:bg-navy-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-3xl md:text-4xl font-bold text-navy-900 dark:text-white mb-4">
+                    How It Works
+                </h2>
+                <p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                    Get actionable insights in minutes, not weeks.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Step 1 -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">1</span>
+                    </div>
+                    <h3 class="font-display text-lg font-bold text-navy-900 dark:text-white mb-2">Upload Protocol</h3>
+                    <p class="text-slate-600 dark:text-slate-400">
+                        Paste your protocol text or upload a PDF. Our AI extracts key information automatically.
+                    </p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">2</span>
+                    </div>
+                    <h3 class="font-display text-lg font-bold text-navy-900 dark:text-white mb-2">AI Analysis</h3>
+                    <p class="text-slate-600 dark:text-slate-400">
+                        Our AI compares against 500K+ historical trials to identify patterns, risks, and opportunities.
+                    </p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">3</span>
+                    </div>
+                    <h3 class="font-display text-lg font-bold text-navy-900 dark:text-white mb-2">Get Insights</h3>
+                    <p class="text-slate-600 dark:text-slate-400">
+                        Review comprehensive reports with actionable recommendations to optimize your trial design.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 bg-gradient-to-br from-primary-600 to-primary-700 relative overflow-hidden">
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%23ffffff\" fill-opacity=\"0.1\"%3E%3Ccircle cx=\"30\" cy=\"30\" r=\"2\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>
+
+        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-6">
+                Ready to Transform Your Clinical Trial Strategy?
+            </h2>
+            <p class="text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
+                Join researchers and sponsors who are already using Clintelligence to design better trials.
+            </p>
+            <a href="/auth" class="inline-flex items-center gap-2 px-10 py-5 bg-white hover:bg-slate-100 text-primary-600 font-display font-bold text-lg rounded-xl transition-all shadow-lg hover:shadow-xl">
+                <span>Start Free Trial</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                </svg>
+            </a>
+            <p class="text-primary-200 text-sm mt-4">No credit card required</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-navy-900 py-12 border-t border-navy-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                    </div>
+                    <span class="font-display font-bold text-xl text-white">Clintelligence</span>
+                </div>
+                <div class="flex items-center gap-6 text-slate-400 text-sm">
+                    <a href="/about" class="hover:text-white transition-colors">About</a>
+                    <a href="#" class="hover:text-white transition-colors">Privacy</a>
+                    <a href="#" class="hover:text-white transition-colors">Terms</a>
+                    <a href="#" class="hover:text-white transition-colors">Contact</a>
+                </div>
+                <div class="text-slate-500 text-sm">
+                    &copy; 2025 Clintelligence. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script>
+function landingPage() {
+    return {
+        init() {
+            // Check if user is already logged in
+            const token = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('auth_user');
+            if (token && user) {
+                // Redirect to analyze page
+                window.location.href = '/analyze';
+            }
+        }
+    };
+}
+</script>
+</body>
+</html>
