@@ -2190,6 +2190,16 @@ async def auth_page(request: Request):
     )
 
 
+@app.get("/home", response_class=HTMLResponse)
+async def home_page(request: Request):
+    """User home/dashboard page (requires auth)."""
+    return templates.TemplateResponse(
+        request=request,
+        name="home.html",
+        context={"page": "home", "require_auth": True}
+    )
+
+
 @app.get("/analyze", response_class=HTMLResponse)
 async def analyze_page(request: Request):
     """Protocol entry/analysis page (requires auth)."""

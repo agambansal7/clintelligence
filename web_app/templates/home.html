@@ -1,0 +1,553 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Clintelligence{% endblock %}
+
+{% block content %}
+<div x-data="homeDashboard()" x-init="init()" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Welcome Header -->
+    <div class="bg-gradient-to-r from-navy-900 to-navy-800 rounded-3xl p-8 mb-8 text-white relative overflow-hidden">
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%234f46e5\" fill-opacity=\"0.08\"%3E%3Ccircle cx=\"30\" cy=\"30\" r=\"2\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>
+        <div class="relative">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                    <p class="text-primary-400 text-sm font-medium mb-1">Welcome back</p>
+                    <h1 class="font-display text-3xl font-bold" x-text="'Hello, ' + (user?.full_name?.split(' ')[0] || 'User') + '!'"></h1>
+                    <p class="text-slate-400 mt-2" x-text="user?.organization || 'Ready to analyze your next protocol?'"></p>
+                </div>
+                <div class="flex gap-3">
+                    <a href="/analyze" class="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-primary-500/30">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        New Analysis
+                    </a>
+                    <a href="/find-trials" class="inline-flex items-center gap-2 px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-violet-500/30">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Find Trials
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white dark:bg-navy-800 rounded-2xl p-5 border border-slate-200 dark:border-navy-700 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-navy-900 dark:text-white" x-text="savedAnalyses.length"></p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Saved Analyses</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-navy-800 rounded-2xl p-5 border border-slate-200 dark:border-navy-700 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-navy-900 dark:text-white" x-text="savedSearches.length"></p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Trial Searches</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-navy-800 rounded-2xl p-5 border border-slate-200 dark:border-navy-700 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-navy-900 dark:text-white" x-text="totalApiCalls"></p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">API Calls</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-navy-800 rounded-2xl p-5 border border-slate-200 dark:border-navy-700 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-navy-900 dark:text-white" x-text="'$' + totalCost.toFixed(2)"></p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Total API Cost</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Saved Analyses (2 columns) -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-navy-800 rounded-2xl border border-slate-200 dark:border-navy-700 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-navy-700 flex items-center justify-between">
+                    <h2 class="font-display font-bold text-lg text-navy-900 dark:text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        My Protocol Analyses
+                    </h2>
+                    <a href="/analyze" class="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium">+ New Analysis</a>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="savedAnalyses.length === 0" class="p-12 text-center">
+                    <div class="w-16 h-16 bg-slate-100 dark:bg-navy-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="font-semibold text-navy-900 dark:text-white mb-2">No analyses yet</h3>
+                    <p class="text-slate-500 dark:text-slate-400 mb-4">Start by analyzing your first protocol</p>
+                    <a href="/analyze" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        New Analysis
+                    </a>
+                </div>
+
+                <!-- Analyses List -->
+                <div x-show="savedAnalyses.length > 0" class="divide-y divide-slate-200 dark:divide-navy-700">
+                    <template x-for="analysis in savedAnalyses.slice(0, 5)" :key="analysis.id">
+                        <div class="p-4 hover:bg-slate-50 dark:hover:bg-navy-700/50 transition-colors">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <h3 class="font-semibold text-navy-900 dark:text-white truncate" x-text="analysis.name"></h3>
+                                        <span x-show="analysis.version > 1" class="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-medium rounded-full" x-text="'v' + analysis.version"></span>
+                                    </div>
+                                    <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                                        <span x-text="analysis.phase || 'Phase N/A'"></span>
+                                        <span class="text-slate-300 dark:text-slate-600">|</span>
+                                        <span x-text="analysis.similar_trial_count + ' similar trials'"></span>
+                                        <span class="text-slate-300 dark:text-slate-600">|</span>
+                                        <span x-text="formatDate(analysis.created_at)"></span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <!-- Version History Button -->
+                                    <button @click="openVersionHistory(analysis)" class="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Version History">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </button>
+                                    <!-- Load Button -->
+                                    <button @click="loadAnalysis(analysis.id)" class="p-2 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors" title="Load Analysis">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </button>
+                                    <!-- Delete Button -->
+                                    <button @click="confirmDelete(analysis)" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Risk/Success Summary -->
+                            <div x-show="analysis.analysis_summary" class="mt-3 flex items-center gap-4">
+                                <template x-if="analysis.analysis_summary">
+                                    <div class="flex items-center gap-4 text-sm">
+                                        <span class="px-2 py-1 rounded-lg"
+                                            :class="{
+                                                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400': (JSON.parse(analysis.analysis_summary || '{}').risk_score || 50) < 40,
+                                                'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400': (JSON.parse(analysis.analysis_summary || '{}').risk_score || 50) >= 40 && (JSON.parse(analysis.analysis_summary || '{}').risk_score || 50) < 60,
+                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': (JSON.parse(analysis.analysis_summary || '{}').risk_score || 50) >= 60
+                                            }"
+                                            x-text="'Risk: ' + (JSON.parse(analysis.analysis_summary || '{}').risk_score || 'N/A')">
+                                        </span>
+                                        <span class="px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg"
+                                            x-text="'Success: ' + (JSON.parse(analysis.analysis_summary || '{}').success_rate || 'N/A') + '%'">
+                                        </span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- View All Link -->
+                <div x-show="savedAnalyses.length > 5" class="px-6 py-3 border-t border-slate-200 dark:border-navy-700 bg-slate-50 dark:bg-navy-900/50">
+                    <button @click="showAllAnalyses = true" class="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium">
+                        View all <span x-text="savedAnalyses.length"></span> analyses
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="space-y-6">
+
+            <!-- API Usage Card -->
+            <div class="bg-white dark:bg-navy-800 rounded-2xl border border-slate-200 dark:border-navy-700 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-navy-700">
+                    <h2 class="font-display font-bold text-lg text-navy-900 dark:text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        </svg>
+                        API Usage
+                    </h2>
+                </div>
+                <div class="p-5 space-y-4">
+                    <!-- Claude Usage -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Claude Sonnet</span>
+                            <span class="text-sm font-semibold text-orange-600 dark:text-orange-400" x-text="'$' + claudeCost.toFixed(4)"></span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span x-text="claudeTokens.toLocaleString() + ' tokens'"></span>
+                        </div>
+                    </div>
+                    <!-- OpenAI Usage -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">OpenAI Embeddings</span>
+                            <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400" x-text="'$' + openaiCost.toFixed(4)"></span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span x-text="openaiTokens.toLocaleString() + ' tokens'"></span>
+                        </div>
+                    </div>
+                    <!-- Total -->
+                    <div class="pt-3 border-t border-slate-200 dark:border-navy-700">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-navy-900 dark:text-white">Total Cost</span>
+                            <span class="text-lg font-bold text-primary-600 dark:text-primary-400" x-text="'$' + totalCost.toFixed(2)"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Trial Searches -->
+            <div class="bg-white dark:bg-navy-800 rounded-2xl border border-slate-200 dark:border-navy-700 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-navy-700 flex items-center justify-between">
+                    <h2 class="font-display font-bold text-lg text-navy-900 dark:text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Recent Searches
+                    </h2>
+                    <a href="/find-trials" class="text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">+ New</a>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="savedSearches.length === 0" class="p-8 text-center">
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">No trial searches yet</p>
+                    <a href="/find-trials" class="text-sm text-violet-600 dark:text-violet-400 hover:underline font-medium">Find trials for patients</a>
+                </div>
+
+                <!-- Searches List -->
+                <div x-show="savedSearches.length > 0" class="divide-y divide-slate-200 dark:divide-navy-700">
+                    <template x-for="search in savedSearches.slice(0, 3)" :key="search.id">
+                        <div class="p-4 hover:bg-slate-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer" @click="loadSearch(search.id)">
+                            <h4 class="font-medium text-navy-900 dark:text-white mb-1" x-text="search.condition"></h4>
+                            <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span x-text="search.total_matches + ' matches'"></span>
+                                <span class="text-slate-300 dark:text-slate-600">|</span>
+                                <span x-text="formatDate(search.created_at)"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-navy-800 dark:to-navy-900 rounded-2xl border border-slate-200 dark:border-navy-700 p-5">
+                <h3 class="font-semibold text-navy-900 dark:text-white mb-4">Quick Actions</h3>
+                <div class="space-y-2">
+                    <a href="/analyze" class="flex items-center gap-3 p-3 bg-white dark:bg-navy-700 rounded-xl hover:shadow-md transition-all">
+                        <div class="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-navy-900 dark:text-white">Analyze Protocol</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">AI-powered analysis</p>
+                        </div>
+                    </a>
+                    <a href="/find-trials" class="flex items-center gap-3 p-3 bg-white dark:bg-navy-700 rounded-xl hover:shadow-md transition-all">
+                        <div class="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-navy-900 dark:text-white">Find Trials</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Match patients to trials</p>
+                        </div>
+                    </a>
+                    <a href="/dashboard" class="flex items-center gap-3 p-3 bg-white dark:bg-navy-700 rounded-xl hover:shadow-md transition-all">
+                        <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-navy-900 dark:text-white">View Dashboard</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Analysis results</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History Modal -->
+    <div x-show="showVersionModal" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showVersionModal = false"></div>
+            <div class="relative bg-white dark:bg-navy-800 rounded-2xl max-w-lg w-full mx-auto shadow-2xl">
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-navy-700 flex items-center justify-between">
+                    <h3 class="font-display font-bold text-lg text-navy-900 dark:text-white" x-text="'Version History: ' + selectedStudyName"></h3>
+                    <button @click="showVersionModal = false" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-6 max-h-96 overflow-y-auto">
+                    <div class="space-y-3">
+                        <template x-for="ver in versionHistory" :key="ver.id">
+                            <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-navy-600 hover:bg-slate-50 dark:hover:bg-navy-700/50">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-navy-900 dark:text-white" x-text="'Version ' + ver.version"></span>
+                                        <span x-show="ver.is_latest" class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-full">Latest</span>
+                                    </div>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400" x-text="formatDate(ver.created_at)"></p>
+                                    <p x-show="ver.version_notes" class="text-sm text-slate-600 dark:text-slate-300 mt-1" x-text="ver.version_notes"></p>
+                                </div>
+                                <button @click="loadAnalysis(ver.id); showVersionModal = false" class="px-3 py-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-sm font-medium rounded-lg hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors">
+                                    Load
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div x-show="showDeleteModal" x-transition class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showDeleteModal = false"></div>
+            <div class="relative bg-white dark:bg-navy-800 rounded-2xl max-w-md w-full mx-auto shadow-2xl p-6">
+                <h3 class="font-display font-bold text-lg text-navy-900 dark:text-white mb-2">Delete Analysis?</h3>
+                <p class="text-slate-600 dark:text-slate-400 mb-6">This will permanently delete "<span x-text="deleteTarget?.name"></span>" and all its versions. This action cannot be undone.</p>
+                <div class="flex justify-end gap-3">
+                    <button @click="showDeleteModal = false" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-navy-700 rounded-lg transition-colors">Cancel</button>
+                    <button @click="deleteAnalysis()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function homeDashboard() {
+    return {
+        user: null,
+        savedAnalyses: [],
+        savedSearches: [],
+        totalApiCalls: 0,
+        totalCost: 0,
+        claudeCost: 0,
+        claudeTokens: 0,
+        openaiCost: 0,
+        openaiTokens: 0,
+        showVersionModal: false,
+        versionHistory: [],
+        selectedStudyName: '',
+        showDeleteModal: false,
+        deleteTarget: null,
+        showAllAnalyses: false,
+
+        async init() {
+            // Load user info
+            const userStr = localStorage.getItem('auth_user');
+            if (userStr) {
+                this.user = JSON.parse(userStr);
+            }
+
+            // Load saved data
+            await this.loadSavedAnalyses();
+            await this.loadSavedSearches();
+            this.loadApiUsage();
+        },
+
+        async loadSavedAnalyses() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch('/api/analyses', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.savedAnalyses = data.analyses || [];
+                }
+            } catch (e) {
+                console.error('Failed to load analyses:', e);
+            }
+        },
+
+        async loadSavedSearches() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch('/api/trial-searches', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.savedSearches = data.searches || [];
+                }
+            } catch (e) {
+                console.error('Failed to load searches:', e);
+            }
+        },
+
+        loadApiUsage() {
+            // Aggregate API usage from stored results
+            const stored = localStorage.getItem('clintelligence_results');
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
+                    if (data.token_usage) {
+                        const usage = data.token_usage;
+                        this.totalApiCalls = usage.api_calls_count || 0;
+                        this.totalCost = usage.total?.cost || 0;
+                        this.claudeCost = usage.claude?.total_cost || 0;
+                        this.claudeTokens = usage.claude?.total_tokens || 0;
+                        this.openaiCost = usage.openai_embedding?.cost || 0;
+                        this.openaiTokens = usage.openai_embedding?.tokens || 0;
+                    }
+                } catch (e) {
+                    console.error('Failed to load API usage:', e);
+                }
+            }
+        },
+
+        async openVersionHistory(analysis) {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            this.selectedStudyName = analysis.name;
+
+            try {
+                const response = await fetch(`/api/analyses/${analysis.id}/versions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.versionHistory = data.versions || [];
+                    this.showVersionModal = true;
+                }
+            } catch (e) {
+                console.error('Failed to load version history:', e);
+            }
+        },
+
+        async loadAnalysis(analysisId) {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/api/analyses/${analysisId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success && data.analysis?.full_result) {
+                    localStorage.setItem('clintelligence_results', JSON.stringify(data.analysis.full_result));
+                    window.location.href = '/dashboard';
+                }
+            } catch (e) {
+                console.error('Failed to load analysis:', e);
+            }
+        },
+
+        async loadSearch(searchId) {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/api/trial-searches/${searchId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success && data.search) {
+                    localStorage.setItem('clintelligence_trial_search', JSON.stringify(data.search));
+                    window.location.href = '/find-trials';
+                }
+            } catch (e) {
+                console.error('Failed to load search:', e);
+            }
+        },
+
+        confirmDelete(analysis) {
+            this.deleteTarget = analysis;
+            this.showDeleteModal = true;
+        },
+
+        async deleteAnalysis() {
+            if (!this.deleteTarget) return;
+
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/api/analyses/${this.deleteTarget.id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.savedAnalyses = this.savedAnalyses.filter(a => a.id !== this.deleteTarget.id);
+                    this.showDeleteModal = false;
+                    this.deleteTarget = null;
+                }
+            } catch (e) {
+                console.error('Failed to delete analysis:', e);
+            }
+        },
+
+        formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+    };
+}
+</script>
+{% endblock %}

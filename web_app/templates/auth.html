@@ -270,7 +270,7 @@ function authPage() {
                 });
                 if (response.ok) {
                     // Already logged in, redirect to dashboard
-                    window.location.href = '/analyze';
+                    window.location.href = '/home';
                 }
             } catch (e) {
                 // Token invalid, continue with auth page
@@ -300,7 +300,7 @@ function authPage() {
                     localStorage.setItem('auth_user', JSON.stringify(data.user));
                     this.success = 'Login successful! Redirecting...';
                     setTimeout(() => {
-                        window.location.href = '/analyze';
+                        window.location.href = '/home';
                     }, 500);
                 } else {
                     this.error = data.error || 'Login failed';
@@ -336,7 +336,7 @@ function authPage() {
                     localStorage.setItem('auth_user', JSON.stringify(data.user));
                     this.success = 'Account created! Redirecting...';
                     setTimeout(() => {
-                        window.location.href = '/analyze';
+                        window.location.href = '/home';
                     }, 500);
                 } else {
                     this.error = data.error || 'Registration failed';
