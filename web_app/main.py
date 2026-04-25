@@ -3570,11 +3570,147 @@ async def trial_search(input_data: TrialSearchInput):
         )
 
 
+async def screen_patient_eligibility_with_claude(
+    patient_info: Dict[str, Any],
+    trials: List[Dict[str, Any]],
+    condition: str
+) -> List[Dict[str, Any]]:
+    """
+    Use Claude to analyze patient eligibility against trial criteria.
+    Returns trials with AI-generated match scores and criteria analysis.
+    """
+    if not trials:
+        return []
+
+    # Build patient profile from answers
+    patient_profile = f"""
+Patient Information:
+- Condition: {condition}
+- Age: {patient_info.get('age', 'Not provided')}
+- Diagnosis confirmed: {patient_info.get('diagnosis', 'Not provided')}
+- Currently receiving treatment: {patient_info.get('treatment', 'Not provided')}
+- Location: {patient_info.get('location', 'Not provided')}
+"""
+
+    # Build trial summaries (limit to first 10 for token efficiency)
+    trials_to_analyze = trials[:10]
+    trials_text = ""
+    for i, trial in enumerate(trials_to_analyze):
+        eligibility = trial.get('eligibility_criteria', trial.get('eligibility_summary', ''))[:800]
+        trials_text += f"""
+---
+Trial {i+1}: {trial.get('nct_id', 'Unknown')}
+Title: {trial.get('title', 'Unknown')}
+Phase: {trial.get('phase', 'Unknown')}
+Eligibility Criteria:
+{eligibility}
+---
+"""
+
+    prompt = f"""You are a clinical trial eligibility screening assistant. Analyze if this patient may qualify for each trial.
+
+{patient_profile}
+
+TRIALS TO ANALYZE:
+{trials_text}
+
+For each trial, provide:
+1. A match_score from 0-100 based on how likely the patient qualifies
+2. Key criteria the patient MEETS (based on available info)
+3. Key criteria the patient DOES NOT MEET
+4. Key criteria that are UNKNOWN (need more info)
+
+Scoring guidelines:
+- 90-100: Excellent match - patient clearly meets major criteria
+- 70-89: Good match - patient likely qualifies, minor unknowns
+- 50-69: Possible match - significant unknowns or borderline criteria
+- 30-49: Unlikely - patient may not meet some criteria
+- 0-29: Does not qualify - patient clearly excluded
+
+Return ONLY valid JSON array:
+[
+  {{
+    "nct_id": "NCT...",
+    "match_score": 85,
+    "match_level": "good",
+    "criteria_met": ["Age within range (18-75)", "Has confirmed diagnosis"],
+    "criteria_not_met": [],
+    "criteria_unknown": ["Prior treatment history unclear"],
+    "screening_notes": "Brief 1-sentence summary"
+  }}
+]"""
+
+    try:
+        from anthropic import Anthropic
+        client = Anthropic()
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        # Track token usage
+        if hasattr(response, 'usage') and response.usage:
+            _token_tracker.add_claude_usage(
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                "screen_patient_eligibility_with_claude"
+            )
+
+        text = response.content[0].text.strip()
+
+        # Extract JSON from response
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0]
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0]
+
+        screening_results = json.loads(text.strip())
+
+        # Merge AI analysis back into trials
+        result_map = {r["nct_id"]: r for r in screening_results}
+        for trial in trials_to_analyze:
+            nct_id = trial.get("nct_id")
+            if nct_id in result_map:
+                ai_result = result_map[nct_id]
+                trial["match_score"] = ai_result.get("match_score", 50)
+                trial["match_level"] = ai_result.get("match_level", "possible")
+                trial["criteria_met"] = ai_result.get("criteria_met", [])
+                trial["criteria_not_met"] = ai_result.get("criteria_not_met", [])
+                trial["criteria_unknown"] = ai_result.get("criteria_unknown", [])
+                trial["screening_notes"] = ai_result.get("screening_notes", "")
+                trial["ai_screened"] = True
+
+        # For trials not analyzed by AI (beyond first 10), use basic scoring
+        for trial in trials[10:]:
+            trial["match_score"] = 50
+            trial["match_level"] = "possible"
+            trial["criteria_met"] = []
+            trial["criteria_not_met"] = []
+            trial["criteria_unknown"] = ["Requires detailed screening"]
+            trial["ai_screened"] = False
+
+        return trials
+
+    except Exception as e:
+        print(f"Claude eligibility screening error: {e}")
+        # Fall back to basic scoring
+        for trial in trials:
+            trial["match_score"] = 60
+            trial["match_level"] = "possible"
+            trial["criteria_met"] = []
+            trial["criteria_not_met"] = []
+            trial["criteria_unknown"] = ["AI screening unavailable"]
+            trial["ai_screened"] = False
+        return trials
+
+
 @app.post("/api/trial-match")
 async def trial_match(input_data: TrialMatchInput):
     """
-    Match patient answers to trials using ClinicalTrials.gov API.
-    Now includes location-aware matching based on patient's location answer.
+    Match patient answers to trials using ClinicalTrials.gov API and Claude AI screening.
+    Includes location-aware matching and AI eligibility analysis.
     """
     if not input_data.condition:
         raise HTTPException(status_code=400, detail="Condition is required")
@@ -3709,42 +3845,13 @@ async def trial_match(input_data: TrialMatchInput):
             if nearest_site:
                 location_str = f"{nearest_site.get('city', '')}, {nearest_site.get('state', '')}"
 
-            # Simple scoring based on available info
-            score = 70  # Base score
-            if patient_age:
-                try:
-                    age = int(patient_age)
-                    if min_age and "Year" in min_age:
-                        min_val = int(min_age.split()[0])
-                        if age >= min_val:
-                            score += 10
-                        else:
-                            score -= 20
-                    if max_age and "Year" in max_age:
-                        max_val = int(max_age.split()[0])
-                        if age <= max_val:
-                            score += 10
-                        else:
-                            score -= 20
-                except:
-                    pass
-
-            # Determine match level
-            match_level = "unlikely"
-            if score >= 90:
-                match_level = "excellent"
-            elif score >= 70:
-                match_level = "good"
-            elif score >= 50:
-                match_level = "possible"
-
             trials.append({
                 "nct_id": ident.get("nctId", ""),
                 "title": ident.get("briefTitle", ""),
                 "status": status.get("overallStatus", ""),
                 "phase": design.get("phases", [""])[0] if design.get("phases") else "",
-                "match_score": min(100, max(0, score)),
-                "match_level": match_level,
+                "match_score": 50,  # Placeholder - will be set by Claude
+                "match_level": "possible",
                 "summary": f"Recruiting trial for {', '.join(conditions.get('conditions', [])[:2])}",
                 "criteria_met": [],
                 "criteria_not_met": [],
@@ -3754,12 +3861,21 @@ async def trial_match(input_data: TrialMatchInput):
                 "location": location_str,
                 "all_sites": all_sites[:5],
                 "total_sites": len(all_sites),
+                "eligibility_criteria": eligibility.get("eligibilityCriteria", ""),
                 "eligibility_summary": eligibility.get("eligibilityCriteria", "")[:300]
             })
 
-        # Sort by score and distance (if location provided)
+        # Use Claude to screen patient eligibility
+        print(f"Screening {len(trials)} trials with Claude AI...")
+        trials = await screen_patient_eligibility_with_claude(
+            patient_info=input_data.answers,
+            trials=trials,
+            condition=input_data.condition
+        )
+        print("AI screening complete")
+
+        # Sort by score first, then by distance (closer is better)
         if patient_lat and patient_lon:
-            # Sort by score first, then by distance
             trials.sort(key=lambda x: (-(x["match_score"]), x["distance_miles"] if x["distance_miles"] is not None else float('inf')))
         else:
             trials.sort(key=lambda x: x["match_score"], reverse=True)
@@ -4150,6 +4266,48 @@ def get_coordinates_from_zip(zip_code: str) -> tuple:
         "323": (27.9, -82.5), "324": (30.0, -84.3), "325": (28.8, -81.4),
         "326": (29.2, -82.1), "327": (28.5, -81.4), "328": (28.0, -82.5),
         "329": (27.5, -82.6), "330": (25.8, -80.2), "331": (25.8, -80.2),
+        # Ohio
+        "430": (41.0, -83.7), "431": (40.0, -83.0), "432": (40.0, -83.0),
+        "433": (39.8, -84.2), "434": (39.5, -84.4), "435": (39.1, -84.5),
+        "436": (41.7, -83.5), "437": (41.1, -81.5), "438": (40.8, -81.4),
+        "439": (40.4, -80.6), "440": (41.5, -81.7), "441": (41.5, -81.7),
+        "442": (41.1, -81.5), "443": (41.1, -80.7), "444": (41.1, -81.0),
+        "445": (40.8, -81.4), "446": (40.3, -80.6), "447": (40.1, -82.5),
+        "448": (40.1, -82.0), "449": (40.4, -82.4), "450": (39.8, -84.2),
+        "451": (39.8, -84.2), "452": (39.1, -84.5), "453": (39.8, -84.2),
+        "454": (39.3, -84.3), "455": (39.9, -83.8), "456": (39.3, -82.1),
+        "457": (39.4, -82.9), "458": (39.9, -82.8),
+        # Michigan
+        "480": (42.3, -83.0), "481": (42.3, -83.0), "482": (42.3, -83.0),
+        "483": (42.5, -83.0), "484": (43.0, -83.7), "485": (43.4, -83.9),
+        "486": (43.2, -86.2), "487": (42.3, -85.6), "488": (42.7, -84.6),
+        "489": (42.9, -85.7), "490": (42.3, -85.2), "491": (42.3, -85.6),
+        "492": (42.3, -85.2), "493": (43.0, -85.7), "494": (42.6, -86.1),
+        "495": (44.3, -85.6), "496": (44.8, -85.0), "497": (42.3, -83.7),
+        "498": (46.5, -87.4), "499": (46.5, -84.3),
+        # Indiana
+        "460": (39.8, -86.2), "461": (39.8, -86.2), "462": (39.8, -86.2),
+        "463": (40.2, -85.4), "464": (40.9, -85.1), "465": (41.1, -85.1),
+        "466": (41.5, -87.0), "467": (41.1, -85.1), "468": (41.7, -86.3),
+        "469": (41.7, -86.3), "470": (39.1, -86.5), "471": (38.4, -82.8),
+        "472": (38.0, -87.6), "473": (38.7, -87.5), "474": (39.5, -87.4),
+        "475": (40.4, -86.9), "476": (39.5, -87.4), "477": (38.0, -87.6),
+        "478": (40.0, -85.7), "479": (40.5, -86.1),
+        # Pennsylvania
+        "150": (40.4, -80.0), "151": (40.4, -80.0), "152": (40.4, -80.0),
+        "153": (40.0, -79.0), "154": (40.3, -78.9), "155": (40.5, -78.4),
+        "156": (40.3, -79.5), "157": (40.2, -80.3), "158": (40.0, -80.7),
+        "159": (40.3, -78.9), "160": (40.5, -79.9), "161": (41.2, -80.1),
+        "162": (41.4, -79.8), "163": (41.9, -80.0), "164": (41.2, -79.4),
+        "165": (41.0, -80.3), "166": (40.5, -78.4), "167": (40.3, -78.9),
+        "168": (40.0, -79.5), "169": (40.2, -76.9), "170": (40.3, -76.9),
+        "171": (40.3, -76.9), "172": (40.0, -76.3), "173": (40.0, -76.3),
+        "174": (40.3, -77.2), "175": (40.0, -76.9), "176": (40.1, -76.3),
+        "177": (40.3, -77.2), "178": (40.6, -75.5), "179": (40.6, -75.5),
+        "180": (40.6, -75.5), "181": (40.9, -75.2), "182": (41.2, -75.9),
+        "183": (40.3, -75.9), "184": (41.4, -75.7), "185": (41.4, -75.9),
+        "186": (41.2, -75.9), "187": (41.2, -75.9), "188": (41.4, -75.7),
+        "189": (40.0, -75.3),
         # Texas
         "750": (32.8, -97.0), "751": (32.8, -96.8), "752": (32.8, -96.8),
         "753": (32.8, -97.3), "760": (32.7, -97.3), "761": (32.4, -99.7),
