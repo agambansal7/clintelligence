@@ -3332,100 +3332,443 @@ function dashboardApp() {
                 return;
             }
 
-            // Create a printable report
             const protocol = this.results.extracted_protocol || {};
             const dashboard = this.dashboard || {};
             const similarTrials = this.results.similar_trials || [];
+            const riskAnalysis = dashboard.risk_analysis || {};
+            const amendmentIntel = dashboard.amendment_intelligence || {};
+            const optimization = dashboard.protocol_optimization || {};
+            const enrollment = dashboard.enrollment_forecast || {};
+            const siteIntel = dashboard.site_intelligence || {};
+            const competitive = dashboard.competitive_landscape || {};
+            const eligibility = dashboard.eligibility_analysis || {};
+            const endpoints = dashboard.endpoint_intelligence || {};
+
+            // Helper functions
+            const getRiskColor = (score) => score >= 60 ? '#dc2626' : score >= 40 ? '#f59e0b' : '#10b981';
+            const getRiskBg = (score) => score >= 60 ? '#fef2f2' : score >= 40 ? '#fffbeb' : '#ecfdf5';
+            const formatList = (items, limit = 10) => items?.slice(0, limit).map(item =>
+                typeof item === 'string' ? `<li>${item}</li>` : `<li>${item.recommendation || item.strength || item.name || JSON.stringify(item)}</li>`
+            ).join('') || '<li>No data available</li>';
 
             const reportHtml = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Protocol Analysis Report - ${protocol.condition || 'Analysis'}</title>
+    <title>Protocol Analysis Report - ${protocol.condition || 'Analysis'} | Clintelligence</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #333; }
-        h1 { color: #1e3a5f; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; }
-        h2 { color: #1e3a5f; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-        h3 { color: #475569; margin-top: 20px; }
-        .header { text-align: center; margin-bottom: 40px; }
-        .header p { color: #666; }
-        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
-        .metric { background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; }
-        .metric-value { font-size: 24px; font-weight: bold; color: #1e3a5f; }
-        .metric-label { font-size: 12px; color: #666; margin-top: 5px; }
-        .section { margin: 25px 0; padding: 20px; background: #f8fafc; border-radius: 8px; }
-        .risk-high { color: #dc2626; }
-        .risk-medium { color: #f59e0b; }
-        .risk-low { color: #10b981; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #f1f5f9; font-weight: 600; }
-        .recommendation { padding: 10px; margin: 8px 0; background: white; border-left: 4px solid #3b82f6; }
-        .recommendation.high { border-left-color: #dc2626; }
-        .recommendation.medium { border-left-color: #f59e0b; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; color: #666; font-size: 12px; }
-        @media print { body { padding: 20px; } .no-print { display: none; } }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 40px; color: #1e293b; line-height: 1.6; }
+
+        /* Header/Branding */
+        .header { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); color: white; padding: 40px; margin: -40px -40px 40px -40px; text-align: center; }
+        .logo { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; }
+        .logo-icon { width: 50px; height: 50px; background: linear-gradient(135deg, #f45900 0%, #ea580c 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .logo-icon svg { width: 30px; height: 30px; fill: white; }
+        .logo-text { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+        .header h1 { font-size: 32px; margin: 0 0 10px 0; font-weight: 700; }
+        .header .subtitle { color: #94a3b8; font-size: 14px; }
+        .header .date { color: #cbd5e1; font-size: 13px; margin-top: 15px; }
+
+        /* Section Styles */
+        h2 { color: #0f172a; font-size: 22px; margin: 40px 0 20px 0; padding-bottom: 10px; border-bottom: 3px solid #f45900; font-weight: 700; }
+        h3 { color: #334155; font-size: 16px; margin: 25px 0 12px 0; font-weight: 600; }
+        h4 { color: #475569; font-size: 14px; margin: 15px 0 8px 0; font-weight: 600; }
+
+        .section { margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .section-dark { background: #0f172a; color: white; }
+        .section-dark h3 { color: #f8fafc; }
+
+        /* Metrics Grid */
+        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 25px 0; }
+        .metric { background: white; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .metric-value { font-size: 28px; font-weight: 800; margin-bottom: 5px; }
+        .metric-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+
+        /* Risk Categories */
+        .risk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
+        .risk-card { padding: 15px; border-radius: 10px; border-left: 4px solid; }
+        .risk-high { background: #fef2f2; border-color: #dc2626; }
+        .risk-medium { background: #fffbeb; border-color: #f59e0b; }
+        .risk-low { background: #ecfdf5; border-color: #10b981; }
+        .risk-card-title { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+        .risk-card-score { font-size: 20px; font-weight: 700; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; }
+        th { background: #0f172a; color: white; padding: 12px 10px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) { background: #f8fafc; }
+        tr:hover { background: #f1f5f9; }
+
+        /* Lists */
+        ul { margin: 10px 0; padding-left: 20px; }
+        li { margin: 8px 0; }
+
+        /* Recommendations */
+        .recommendation { padding: 15px; margin: 10px 0; background: white; border-radius: 8px; border-left: 4px solid #3b82f6; }
+        .recommendation.high { border-left-color: #dc2626; background: #fef2f2; }
+        .recommendation.medium { border-left-color: #f59e0b; background: #fffbeb; }
+        .recommendation.low { border-left-color: #10b981; background: #ecfdf5; }
+        .recommendation-priority { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+
+        /* Strengths/Weaknesses */
+        .strength { padding: 12px; margin: 8px 0; background: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981; }
+        .weakness { padding: 12px; margin: 8px 0; background: #fef2f2; border-radius: 8px; border-left: 4px solid #dc2626; }
+
+        /* Info Box */
+        .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .info-box-title { font-weight: 600; color: #1e40af; margin-bottom: 5px; }
+
+        /* Two Column Layout */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        /* Page Break */
+        .page-break { page-break-before: always; margin-top: 40px; }
+
+        /* Footer */
+        .footer { margin-top: 50px; padding: 30px; background: #0f172a; color: white; text-align: center; border-radius: 12px; }
+        .footer-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .footer p { margin: 5px 0; font-size: 13px; color: #94a3b8; }
+        .footer a { color: #f45900; text-decoration: none; }
+
+        /* Print Styles */
+        @media print {
+            body { padding: 20px; }
+            .header { margin: -20px -20px 30px -20px; padding: 30px; }
+            .page-break { page-break-before: always; }
+            .no-print { display: none; }
+        }
     </style>
 </head>
 <body>
+    <!-- Header with Branding -->
     <div class="header">
+        <div class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <span class="logo-text">Clintelligence</span>
+        </div>
         <h1>Protocol Analysis Report</h1>
-        <p>Generated by Clintelligence - AI-Powered Protocol Intelligence</p>
-        <p>${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p class="subtitle">AI-Powered Clinical Trial Intelligence</p>
+        <p class="date">Generated on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString()}</p>
     </div>
 
-    <h2>Protocol Summary</h2>
+    <!-- Executive Summary -->
+    <h2>Executive Summary</h2>
     <div class="section">
-        <p><strong>Condition:</strong> ${protocol.condition || 'N/A'}</p>
-        <p><strong>Therapeutic Area:</strong> ${protocol.therapeutic_area || 'N/A'}</p>
-        <p><strong>Phase:</strong> ${protocol.phase || 'N/A'}</p>
-        <p><strong>Target Enrollment:</strong> ${protocol.target_enrollment?.toLocaleString() || 'N/A'}</p>
-        <p><strong>Primary Endpoint:</strong> ${protocol.primary_endpoint || 'N/A'}</p>
-        ${protocol.sponsor ? `<p><strong>Sponsor:</strong> ${protocol.sponsor}</p>` : ''}
+        <div class="two-col">
+            <div>
+                <h4>Protocol Details</h4>
+                <p><strong>Condition:</strong> ${protocol.condition || 'N/A'}</p>
+                <p><strong>Therapeutic Area:</strong> ${protocol.therapeutic_area || 'N/A'}</p>
+                <p><strong>Phase:</strong> ${protocol.phase || 'N/A'}</p>
+                <p><strong>Target Enrollment:</strong> ${protocol.target_enrollment?.toLocaleString() || 'N/A'} patients</p>
+                ${protocol.sponsor ? `<p><strong>Sponsor:</strong> ${protocol.sponsor}</p>` : ''}
+            </div>
+            <div>
+                <h4>Primary Endpoint</h4>
+                <p>${protocol.primary_endpoint || 'N/A'}</p>
+                <h4>Intervention</h4>
+                <p>${protocol.intervention_name || protocol.drug_name || 'N/A'}</p>
+            </div>
+        </div>
     </div>
 
-    <h2>Key Metrics</h2>
     <div class="metric-grid">
         <div class="metric">
-            <div class="metric-value ${(dashboard.risk_analysis?.overall_score || 50) >= 60 ? 'risk-high' : (dashboard.risk_analysis?.overall_score || 50) >= 40 ? 'risk-medium' : 'risk-low'}">${dashboard.risk_analysis?.overall_score || 'N/A'}</div>
+            <div class="metric-value" style="color: ${getRiskColor(riskAnalysis.overall_score || 50)}">${riskAnalysis.overall_score || 'N/A'}</div>
             <div class="metric-label">Risk Score</div>
         </div>
         <div class="metric">
-            <div class="metric-value">${dashboard.amendment_intelligence?.overall_risk_score || dashboard.protocol_optimization?.amendment_risk?.probability || 'N/A'}%</div>
+            <div class="metric-value" style="color: #f59e0b">${amendmentIntel.overall_risk_score || optimization.amendment_risk?.probability || 'N/A'}%</div>
             <div class="metric-label">Amendment Risk</div>
         </div>
         <div class="metric">
-            <div class="metric-value">${dashboard.protocol_optimization?.success_rate || 'N/A'}%</div>
+            <div class="metric-value" style="color: #10b981">${optimization.success_rate || 'N/A'}%</div>
             <div class="metric-label">Predicted Success</div>
         </div>
         <div class="metric">
-            <div class="metric-value">${similarTrials.length}</div>
+            <div class="metric-value" style="color: #3b82f6">${similarTrials.length}</div>
             <div class="metric-label">Similar Trials</div>
         </div>
     </div>
 
+    <!-- Risk Analysis Section -->
     <h2>Risk Analysis</h2>
-    <div class="section">
-        <p><strong>Overall Risk Level:</strong> ${dashboard.risk_analysis?.overall_risk_level || 'MEDIUM'}</p>
-        ${dashboard.risk_analysis?.overall_risk_rationale ? `<p>${dashboard.risk_analysis.overall_risk_rationale}</p>` : ''}
+    <div class="section" style="background: ${getRiskBg(riskAnalysis.overall_score || 50)}">
+        <h3>Overall Risk Assessment: ${riskAnalysis.overall_risk_level || 'MEDIUM'}</h3>
+        <p>${riskAnalysis.overall_risk_rationale || 'Based on analysis of similar historical trials.'}</p>
     </div>
 
+    ${(riskAnalysis.risk_categories || []).length > 0 ? `
+    <div class="risk-grid">
+        ${(riskAnalysis.risk_categories || []).map(cat => `
+            <div class="risk-card ${(cat.level || 'MEDIUM').toLowerCase().includes('high') ? 'risk-high' : (cat.level || 'MEDIUM').toLowerCase().includes('low') ? 'risk-low' : 'risk-medium'}">
+                <div class="risk-card-title">${cat.category || 'Risk Category'}</div>
+                <div class="risk-card-score">${cat.score || 'N/A'}/100</div>
+                <p style="font-size: 12px; margin-top: 8px; color: #64748b;">${cat.detailed_analysis?.substring(0, 100) || ''}...</p>
+            </div>
+        `).join('')}
+    </div>
+    ` : ''}
+
+    ${(riskAnalysis.critical_watch_items || []).length > 0 ? `
+    <h3>Critical Watch Items</h3>
+    <ul>
+        ${riskAnalysis.critical_watch_items.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- Amendment Intelligence -->
+    <div class="page-break"></div>
+    <h2>Amendment Intelligence</h2>
+    <div class="section">
+        <div class="two-col">
+            <div>
+                <h4>Amendment Probability</h4>
+                <p style="font-size: 36px; font-weight: 800; color: #f59e0b; margin: 10px 0;">${amendmentIntel.amendment_probability || amendmentIntel.overall_risk_score || 'N/A'}%</p>
+                <p>Predicted Amendments: ${amendmentIntel.predicted_amendments || 'N/A'}</p>
+            </div>
+            <div>
+                <h4>Risk Level: ${amendmentIntel.risk_level || 'MODERATE'}</h4>
+                <p>${amendmentIntel.rationale || 'Based on historical amendment patterns.'}</p>
+            </div>
+        </div>
+    </div>
+
+    ${(amendmentIntel.likely_amendment_areas || []).length > 0 ? `
+    <h3>Likely Amendment Areas</h3>
+    <ul>
+        ${amendmentIntel.likely_amendment_areas.map(area => `<li>${typeof area === 'string' ? area : area.area || JSON.stringify(area)}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    ${(amendmentIntel.prevention_action_plan || []).length > 0 ? `
+    <h3>Prevention Action Plan</h3>
+    <ul>
+        ${amendmentIntel.prevention_action_plan.map(action => `<li>${typeof action === 'string' ? action : action.action || JSON.stringify(action)}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- Protocol Optimization -->
+    <h2>Protocol Optimization</h2>
+    <div class="section">
+        <div class="two-col">
+            <div>
+                <h4>Complexity Score</h4>
+                <p style="font-size: 36px; font-weight: 800; color: #6366f1; margin: 10px 0;">${optimization.complexity_score?.score || 'N/A'}/100</p>
+                <p>Level: ${optimization.complexity_score?.level || 'MODERATE'}</p>
+            </div>
+            <div>
+                <h4>Success Prediction</h4>
+                <p style="font-size: 36px; font-weight: 800; color: #10b981; margin: 10px 0;">${optimization.success_rate || 'N/A'}%</p>
+                <p>${optimization.success_prediction?.comparison_to_benchmarks || ''}</p>
+            </div>
+        </div>
+    </div>
+
+    ${(optimization.strengths || []).length > 0 ? `
+    <h3>Protocol Strengths</h3>
+    ${optimization.strengths.slice(0, 5).map(s => `
+        <div class="strength">
+            <strong>${typeof s === 'string' ? s : s.strength || 'Strength'}</strong>
+            ${s.explanation ? `<p style="font-size: 13px; margin-top: 5px; color: #64748b;">${s.explanation}</p>` : ''}
+        </div>
+    `).join('')}
+    ` : ''}
+
+    ${(optimization.weaknesses || []).length > 0 ? `
+    <h3>Areas for Improvement</h3>
+    ${optimization.weaknesses.slice(0, 5).map(w => `
+        <div class="weakness">
+            <strong>${typeof w === 'string' ? w : w.weakness || 'Area'}</strong>
+            ${w.recommendation ? `<p style="font-size: 13px; margin-top: 5px; color: #64748b;">${w.recommendation}</p>` : ''}
+        </div>
+    `).join('')}
+    ` : ''}
+
+    <h3>Recommendations</h3>
+    ${(optimization.recommendations || []).slice(0, 8).map(rec => `
+        <div class="recommendation ${rec.priority || 'medium'}">
+            <div class="recommendation-priority" style="color: ${rec.priority === 'high' ? '#dc2626' : rec.priority === 'low' ? '#10b981' : '#f59e0b'}">${rec.priority || 'medium'} priority</div>
+            <p style="margin: 0;"><strong>${rec.recommendation || rec}</strong></p>
+            ${rec.rationale ? `<p style="font-size: 13px; margin-top: 5px; color: #64748b;">${rec.rationale}</p>` : ''}
+        </div>
+    `).join('')}
+
+    <!-- Eligibility Analysis -->
+    <div class="page-break"></div>
+    <h2>Eligibility Analysis</h2>
+    <div class="section">
+        <h3>Screen Failure Prediction</h3>
+        <div class="two-col">
+            <div>
+                <p><strong>Predicted Rate:</strong> ${eligibility.screen_failure_prediction?.rate || 'N/A'}%</p>
+                <p><strong>Screen-to-Enroll Ratio:</strong> ${eligibility.screen_failure_prediction?.predicted_ratio || 'N/A'}</p>
+            </div>
+            <div>
+                <p><strong>Benchmark Ratio:</strong> ${eligibility.screen_failure_prediction?.benchmark_ratio || 'N/A'}</p>
+                <p><strong>Assessment:</strong> ${eligibility.screen_failure_prediction?.assessment || 'N/A'}</p>
+            </div>
+        </div>
+    </div>
+
+    ${(eligibility.optimization_suggestions || []).length > 0 ? `
+    <h3>Optimization Suggestions</h3>
+    <ul>
+        ${eligibility.optimization_suggestions.slice(0, 5).map(s => `<li>${typeof s === 'string' ? s : s.suggestion || JSON.stringify(s)}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- Endpoint Intelligence -->
+    <h2>Endpoint Intelligence</h2>
+    <div class="section">
+        <h4>Primary Endpoint</h4>
+        <p>${endpoints.primary_endpoint || protocol.primary_endpoint || 'N/A'}</p>
+        ${endpoints.primary_endpoint_analysis?.assessment ? `
+        <div class="info-box">
+            <div class="info-box-title">Assessment</div>
+            <p>${endpoints.primary_endpoint_analysis.assessment}</p>
+        </div>
+        ` : ''}
+    </div>
+
+    ${endpoints.sample_size_scenarios?.length > 0 ? `
+    <h3>Sample Size Scenarios</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Scenario</th>
+                <th>Effect Size</th>
+                <th>Patients Needed</th>
+                <th>Power</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${endpoints.sample_size_scenarios.map(s => `
+                <tr>
+                    <td>${s.scenario || 'N/A'}</td>
+                    <td>${s.effect_size || 'N/A'}</td>
+                    <td>${s.patients_needed || 'N/A'}</td>
+                    <td>${s.power || 'N/A'}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    ` : ''}
+
+    <!-- Enrollment Forecast -->
+    <div class="page-break"></div>
     <h2>Enrollment Forecast</h2>
     <div class="section">
-        <p><strong>Target:</strong> ${(dashboard.enrollment_forecast?.target_enrollment || protocol.target_enrollment || 0).toLocaleString()} patients</p>
-        ${(dashboard.enrollment_forecast?.scenarios || []).map(s =>
-            `<p><strong>${s.name?.charAt(0).toUpperCase() + s.name?.slice(1) || 'Scenario'}:</strong> ${s.months} months (${s.probability}% probability)</p>`
-        ).join('')}
+        <h3>Target: ${(enrollment.target_enrollment || protocol.target_enrollment || 0).toLocaleString()} patients</h3>
+        <div class="two-col">
+            <div>
+                <p><strong>Recommended Sites:</strong> ${enrollment.recommended_sites || 'N/A'}</p>
+                <p><strong>Recommended Countries:</strong> ${enrollment.recommended_countries || 'N/A'}</p>
+                <p><strong>Patients per Site:</strong> ${enrollment.patients_per_site || 'N/A'}</p>
+            </div>
+            <div>
+                <p><strong>Enrollment Rate:</strong> ${enrollment.enrollment_rate_per_site_month || 'N/A'} patients/site/month</p>
+                <p><strong>Screen Failure Rate:</strong> ${enrollment.screen_failure_prediction || 'N/A'}%</p>
+                <p><strong>Site Activation:</strong> ${enrollment.site_activation_timeline_weeks || 'N/A'} weeks</p>
+            </div>
+        </div>
     </div>
 
-    <h2>Top Recommendations</h2>
+    ${(enrollment.scenarios || []).length > 0 ? `
+    <h3>Timeline Scenarios</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Scenario</th>
+                <th>Duration</th>
+                <th>Probability</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${enrollment.scenarios.map(s => `
+                <tr>
+                    <td>${(s.name || 'Scenario').charAt(0).toUpperCase() + (s.name || 'Scenario').slice(1)}</td>
+                    <td>${s.months} months</td>
+                    <td>${s.probability}%</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    ` : ''}
+
+    ${(enrollment.key_enrollment_risks || []).length > 0 ? `
+    <h3>Key Enrollment Risks</h3>
+    <ul>
+        ${enrollment.key_enrollment_risks.map(r => `<li>${typeof r === 'string' ? r : r.risk || JSON.stringify(r)}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- Site Intelligence -->
+    <h2>Site Intelligence</h2>
     <div class="section">
-        ${(dashboard.protocol_optimization?.recommendations || []).slice(0, 5).map(rec =>
-            `<div class="recommendation ${rec.priority}">[${(rec.priority || 'medium').toUpperCase()}] ${rec.recommendation}</div>`
-        ).join('')}
+        <div class="two-col">
+            <div>
+                <h4>Site Strategy</h4>
+                <p><strong>Total Sites:</strong> ${siteIntel.strategy?.recommended_total_sites || 'N/A'}</p>
+                <p><strong>Countries:</strong> ${siteIntel.strategy?.recommended_countries || 'N/A'}</p>
+            </div>
+            <div>
+                <h4>Geographic Distribution</h4>
+                ${(siteIntel.top_countries || []).slice(0, 5).map(c => `<p>${c.country}: ${c.trials} trials</p>`).join('')}
+            </div>
+        </div>
     </div>
 
-    <h2>Similar Trials (Top 10)</h2>
+    ${(siteIntel.country_recommendations || []).length > 0 ? `
+    <h3>Country Recommendations</h3>
+    <ul>
+        ${siteIntel.country_recommendations.slice(0, 5).map(c => `<li><strong>${c.country || c.name || 'Country'}:</strong> ${c.rationale || c.recommendation || ''}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- Competitive Landscape -->
+    <div class="page-break"></div>
+    <h2>Competitive Landscape</h2>
+    <div class="section">
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-value" style="color: #3b82f6">${competitive.total_similar_trials || similarTrials.length}</div>
+                <div class="metric-label">Similar Trials</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: #10b981">${competitive.completed || 0}</div>
+                <div class="metric-label">Completed</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: #f59e0b">${competitive.recruiting || 0}</div>
+                <div class="metric-label">Recruiting</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: #dc2626">${competitive.terminated || 0}</div>
+                <div class="metric-label">Terminated</div>
+            </div>
+        </div>
+        <p><strong>Competition Level:</strong> ${competitive.competition_level || competitive.overall_assessment?.competition_level || 'MEDIUM'}</p>
+        ${competitive.overall_assessment?.executive_summary ? `<p>${competitive.overall_assessment.executive_summary}</p>` : ''}
+    </div>
+
+    ${(competitive.strategic_recommendations || []).length > 0 ? `
+    <h3>Strategic Recommendations</h3>
+    <ul>
+        ${competitive.strategic_recommendations.slice(0, 5).map(r => `<li>${typeof r === 'string' ? r : r.recommendation || JSON.stringify(r)}</li>`).join('')}
+    </ul>
+    ` : ''}
+
+    <!-- Similar Trials -->
+    <h2>Similar Trials Analysis</h2>
+    <p>Found ${similarTrials.length} similar trials based on condition, intervention, and design characteristics.</p>
+
     <table>
         <thead>
             <tr>
@@ -3433,25 +3776,39 @@ function dashboardApp() {
                 <th>Title</th>
                 <th>Phase</th>
                 <th>Status</th>
+                <th>Enrollment</th>
                 <th>Score</th>
             </tr>
         </thead>
         <tbody>
-            ${similarTrials.slice(0, 10).map(trial => `
+            ${similarTrials.slice(0, 20).map(trial => `
                 <tr>
-                    <td>${trial.nct_id || 'N/A'}</td>
-                    <td>${(trial.title || 'N/A').substring(0, 60)}${(trial.title || '').length > 60 ? '...' : ''}</td>
+                    <td><a href="https://clinicaltrials.gov/study/${trial.nct_id}" style="color: #3b82f6;">${trial.nct_id || 'N/A'}</a></td>
+                    <td>${(trial.title || 'N/A').substring(0, 50)}${(trial.title || '').length > 50 ? '...' : ''}</td>
                     <td>${trial.phase || 'N/A'}</td>
                     <td>${trial.status || 'N/A'}</td>
-                    <td>${trial.semantic_score || trial.overall_score || 'N/A'}</td>
+                    <td>${trial.enrollment?.toLocaleString() || 'N/A'}</td>
+                    <td>${Math.round(trial.semantic_score || trial.overall_score || 0)}%</td>
                 </tr>
             `).join('')}
         </tbody>
     </table>
+    ${similarTrials.length > 20 ? `<p style="color: #64748b; font-style: italic;">Showing top 20 of ${similarTrials.length} similar trials</p>` : ''}
 
+    <!-- Footer -->
     <div class="footer">
-        <p>This report was generated by Clintelligence - AI-Powered Protocol Intelligence Platform</p>
+        <div class="footer-logo">
+            <div style="width: 35px; height: 35px; background: linear-gradient(135deg, #f45900 0%, #ea580c 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <span style="font-size: 20px; font-weight: 700;">Clintelligence</span>
+        </div>
+        <p><strong>AI-Powered Clinical Trial Intelligence Platform</strong></p>
+        <p>This report was generated using advanced AI analysis of clinical trial data.</p>
         <p>For full trial details, visit <a href="https://clinicaltrials.gov">ClinicalTrials.gov</a></p>
+        <p style="margin-top: 15px; color: #64748b; font-size: 11px;">&copy; ${new Date().getFullYear()} Clintelligence. All rights reserved.</p>
     </div>
 </body>
 </html>`;
