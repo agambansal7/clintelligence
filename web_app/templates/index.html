@@ -590,9 +590,16 @@ function protocolAnalyzer() {
             const textToAnalyze = this.effectiveText;
 
             try {
+                // Include auth token if logged in (for auto-save)
+                const headers = { 'Content-Type': 'application/json' };
+                const token = localStorage.getItem('auth_token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 const response = await fetch('/api/analyze-v2', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({
                         protocol_text: textToAnalyze,
                         max_similar: this.maxSimilar,
