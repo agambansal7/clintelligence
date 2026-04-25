@@ -3340,7 +3340,7 @@ async def trial_search(input_data: TrialSearchInput):
             {"id": "age", "question": "What is your age?", "type": "number", "options": None, "required": True, "help_text": "Enter your current age in years"},
             {"id": "diagnosis", "question": f"Have you been diagnosed with {input_data.condition}?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": None},
             {"id": "treatment", "question": "Are you currently receiving any treatment?", "type": "boolean", "options": ["Yes", "No"], "required": True, "help_text": None},
-            {"id": "location", "question": "What is your location (city/state)?", "type": "text", "options": None, "required": False, "help_text": "To find trials near you"}
+            {"id": "location", "question": "What is your ZIP code or city/state?", "type": "text", "options": None, "required": False, "help_text": "Enter ZIP code (e.g., 10001) or city, state (e.g., New York, NY) to find nearby trials"}
         ]
 
         return {
@@ -3364,6 +3364,7 @@ async def trial_search(input_data: TrialSearchInput):
 async def trial_match(input_data: TrialMatchInput):
     """
     Match patient answers to trials using ClinicalTrials.gov API.
+    Now includes location-aware matching based on patient's location answer.
     """
     if not input_data.condition:
         raise HTTPException(status_code=400, detail="Condition is required")
@@ -3372,14 +3373,45 @@ async def trial_match(input_data: TrialMatchInput):
         raise HTTPException(status_code=400, detail="Patient answers are required")
 
     try:
-        # Search ClinicalTrials.gov API
+        import urllib.parse
+
+        # Extract patient location from answers
+        patient_location_str = input_data.answers.get('location', '')
+        patient_coords = None
+        patient_lat = None
+        patient_lon = None
+
+        if patient_location_str:
+            patient_location_str = patient_location_str.strip()
+            # Check if it looks like a ZIP code (5 digits)
+            if patient_location_str.isdigit() and len(patient_location_str) == 5:
+                patient_coords = get_coordinates_from_zip(patient_location_str)
+                if patient_coords:
+                    patient_lat, patient_lon = patient_coords
+            else:
+                # Try to parse as "city, state" or just state abbreviation
+                parts = [p.strip() for p in patient_location_str.split(',')]
+                if len(parts) >= 2:
+                    city = parts[0]
+                    state = parts[1][:2].upper() if len(parts[1]) >= 2 else parts[1].upper()
+                    # Use common city coordinates lookup
+                    city_coords = _get_city_coordinates(city, state)
+                    if city_coords:
+                        patient_lat, patient_lon = city_coords
+                elif len(parts) == 1 and len(parts[0]) == 2:
+                    # State abbreviation only - use state center
+                    state_coords = _get_state_center_coordinates(parts[0].upper())
+                    if state_coords:
+                        patient_lat, patient_lon = state_coords
+
+        # Search ClinicalTrials.gov API with geo fields
         base_url = "https://clinicaltrials.gov/api/v2/studies"
         params = {
             "query.cond": input_data.condition,
             "filter.overallStatus": "RECRUITING",
-            "pageSize": 30,
+            "pageSize": 50,  # Get more to filter by location
             "format": "json",
-            "fields": "NCTId,BriefTitle,OverallStatus,Phase,EnrollmentCount,Condition,InterventionName,EligibilityCriteria,LeadSponsorName,LocationCity,LocationState,LocationFacility"
+            "fields": "NCTId,BriefTitle,OverallStatus,Phase,EnrollmentCount,Condition,InterventionName,EligibilityCriteria,LeadSponsorName,LocationCity,LocationState,LocationFacility,LocationGeoPoint"
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -3397,18 +3429,62 @@ async def trial_match(input_data: TrialMatchInput):
             design = proto.get("designModule", {})
             eligibility = proto.get("eligibilityModule", {})
             conditions = proto.get("conditionsModule", {})
-            locations = proto.get("contactsLocationsModule", {}).get("locations", [])
+            contacts = proto.get("contactsLocationsModule", {})
+            locations = contacts.get("locations", [])
 
             # Basic age check
             min_age = eligibility.get("minimumAge", "")
             max_age = eligibility.get("maximumAge", "")
 
+            # Process all sites and find nearest
+            all_sites = []
+            nearest_site = None
+            min_distance = float('inf')
+
+            for loc in locations:
+                geo = loc.get("geoPoint", {})
+                site = {
+                    "facility_name": loc.get("facility", "Study Site"),
+                    "city": loc.get("city", ""),
+                    "state": loc.get("state", ""),
+                    "country": loc.get("country", ""),
+                    "contact_name": loc.get("contactList", {}).get("contact", [{}])[0].get("name", "") if loc.get("contactList") else "",
+                    "contact_phone": loc.get("contactList", {}).get("contact", [{}])[0].get("phone", "") if loc.get("contactList") else "",
+                    "distance_miles": None
+                }
+
+                # Calculate distance if patient location available
+                if patient_lat and patient_lon and geo.get("lat") and geo.get("lon"):
+                    try:
+                        distance = calculate_distance_miles(
+                            patient_lat, patient_lon,
+                            float(geo["lat"]), float(geo["lon"])
+                        )
+                        site["distance_miles"] = round(distance, 1)
+
+                        if distance < min_distance:
+                            min_distance = distance
+                            nearest_site = site
+                    except:
+                        pass
+
+                # Add directions URL
+                address_parts = [p for p in [site["facility_name"], site["city"], site["state"], site["country"]] if p]
+                if address_parts:
+                    site["directions_url"] = f"https://www.google.com/maps/dir/?api=1&destination={urllib.parse.quote(', '.join(address_parts))}"
+
+                all_sites.append(site)
+
+            # If no distance calculated, use first site as nearest
+            if not nearest_site and all_sites:
+                nearest_site = all_sites[0]
+
+            # Sort sites by distance
+            all_sites.sort(key=lambda x: x["distance_miles"] if x["distance_miles"] is not None else float('inf'))
+
             location_str = ""
-            facility = ""
-            if locations:
-                loc = locations[0]
-                location_str = f"{loc.get('city', '')}, {loc.get('state', '')}"
-                facility = loc.get('facility', '')
+            if nearest_site:
+                location_str = f"{nearest_site.get('city', '')}, {nearest_site.get('state', '')}"
 
             # Simple scoring based on available info
             score = 70  # Base score
@@ -3430,30 +3506,51 @@ async def trial_match(input_data: TrialMatchInput):
                 except:
                     pass
 
+            # Determine match level
+            match_level = "unlikely"
+            if score >= 90:
+                match_level = "excellent"
+            elif score >= 70:
+                match_level = "good"
+            elif score >= 50:
+                match_level = "possible"
+
             trials.append({
                 "nct_id": ident.get("nctId", ""),
                 "title": ident.get("briefTitle", ""),
                 "status": status.get("overallStatus", ""),
                 "phase": design.get("phases", [""])[0] if design.get("phases") else "",
                 "match_score": min(100, max(0, score)),
-                "match_level": "Good Match" if score >= 70 else "Potential Match",
+                "match_level": match_level,
                 "summary": f"Recruiting trial for {', '.join(conditions.get('conditions', [])[:2])}",
                 "criteria_met": [],
                 "criteria_not_met": [],
                 "criteria_unknown": [],
-                "nearest_site": facility,
+                "nearest_site": nearest_site,
+                "distance_miles": nearest_site.get("distance_miles") if nearest_site else None,
                 "location": location_str,
+                "all_sites": all_sites[:5],
+                "total_sites": len(all_sites),
                 "eligibility_summary": eligibility.get("eligibilityCriteria", "")[:300]
             })
 
-        # Sort by score
-        trials.sort(key=lambda x: x["match_score"], reverse=True)
+        # Sort by score and distance (if location provided)
+        if patient_lat and patient_lon:
+            # Sort by score first, then by distance
+            trials.sort(key=lambda x: (-(x["match_score"]), x["distance_miles"] if x["distance_miles"] is not None else float('inf')))
+        else:
+            trials.sort(key=lambda x: x["match_score"], reverse=True)
 
         return {
             "success": True,
             "condition": input_data.condition,
             "total_evaluated": len(trials),
-            "matches": trials[:15]
+            "patient_location": {
+                "input": patient_location_str,
+                "latitude": patient_lat,
+                "longitude": patient_lon
+            } if patient_lat and patient_lon else None,
+            "matches": trials[:20]
         }
 
     except Exception as e:
@@ -3894,6 +3991,149 @@ def get_coordinates_from_zip(zip_code: str) -> tuple:
         return regional_coords[zip_prefix]
 
     return None
+
+
+# Common US cities with coordinates for location matching
+US_CITY_COORDINATES = {
+    # Major cities by state
+    ("NEW YORK", "NY"): (40.7128, -74.0060),
+    ("LOS ANGELES", "CA"): (34.0522, -118.2437),
+    ("CHICAGO", "IL"): (41.8781, -87.6298),
+    ("HOUSTON", "TX"): (29.7604, -95.3698),
+    ("PHOENIX", "AZ"): (33.4484, -112.0740),
+    ("PHILADELPHIA", "PA"): (39.9526, -75.1652),
+    ("SAN ANTONIO", "TX"): (29.4241, -98.4936),
+    ("SAN DIEGO", "CA"): (32.7157, -117.1611),
+    ("DALLAS", "TX"): (32.7767, -96.7970),
+    ("SAN JOSE", "CA"): (37.3382, -121.8863),
+    ("AUSTIN", "TX"): (30.2672, -97.7431),
+    ("JACKSONVILLE", "FL"): (30.3322, -81.6557),
+    ("FORT WORTH", "TX"): (32.7555, -97.3308),
+    ("COLUMBUS", "OH"): (39.9612, -82.9988),
+    ("CHARLOTTE", "NC"): (35.2271, -80.8431),
+    ("SAN FRANCISCO", "CA"): (37.7749, -122.4194),
+    ("INDIANAPOLIS", "IN"): (39.7684, -86.1581),
+    ("SEATTLE", "WA"): (47.6062, -122.3321),
+    ("DENVER", "CO"): (39.7392, -104.9903),
+    ("WASHINGTON", "DC"): (38.9072, -77.0369),
+    ("BOSTON", "MA"): (42.3601, -71.0589),
+    ("NASHVILLE", "TN"): (36.1627, -86.7816),
+    ("BALTIMORE", "MD"): (39.2904, -76.6122),
+    ("OKLAHOMA CITY", "OK"): (35.4676, -97.5164),
+    ("LOUISVILLE", "KY"): (38.2527, -85.7585),
+    ("PORTLAND", "OR"): (45.5152, -122.6784),
+    ("LAS VEGAS", "NV"): (36.1699, -115.1398),
+    ("MILWAUKEE", "WI"): (43.0389, -87.9065),
+    ("ALBUQUERQUE", "NM"): (35.0844, -106.6504),
+    ("TUCSON", "AZ"): (32.2226, -110.9747),
+    ("FRESNO", "CA"): (36.7378, -119.7871),
+    ("SACRAMENTO", "CA"): (38.5816, -121.4944),
+    ("ATLANTA", "GA"): (33.7490, -84.3880),
+    ("MIAMI", "FL"): (25.7617, -80.1918),
+    ("TAMPA", "FL"): (27.9506, -82.4572),
+    ("ORLANDO", "FL"): (28.5383, -81.3792),
+    ("CLEVELAND", "OH"): (41.4993, -81.6944),
+    ("PITTSBURGH", "PA"): (40.4406, -79.9959),
+    ("MINNEAPOLIS", "MN"): (44.9778, -93.2650),
+    ("ST LOUIS", "MO"): (38.6270, -90.1994),
+    ("RALEIGH", "NC"): (35.7796, -78.6382),
+    ("SALT LAKE CITY", "UT"): (40.7608, -111.8910),
+    ("BIRMINGHAM", "AL"): (33.5207, -86.8025),
+    ("NEW ORLEANS", "LA"): (29.9511, -90.0715),
+    ("BUFFALO", "NY"): (42.8864, -78.8784),
+    ("ROCHESTER", "NY"): (43.1566, -77.6088),
+    ("HARTFORD", "CT"): (41.7658, -72.6734),
+    ("PROVIDENCE", "RI"): (41.8240, -71.4128),
+    ("RICHMOND", "VA"): (37.5407, -77.4360),
+    ("MEMPHIS", "TN"): (35.1495, -90.0490),
+    ("DETROIT", "MI"): (42.3314, -83.0458),
+}
+
+# State center coordinates
+US_STATE_CENTERS = {
+    "AL": (32.806671, -86.791130),
+    "AK": (61.370716, -152.404419),
+    "AZ": (33.729759, -111.431221),
+    "AR": (34.969704, -92.373123),
+    "CA": (36.116203, -119.681564),
+    "CO": (39.059811, -105.311104),
+    "CT": (41.597782, -72.755371),
+    "DE": (39.318523, -75.507141),
+    "FL": (27.766279, -81.686783),
+    "GA": (33.040619, -83.643074),
+    "HI": (21.094318, -157.498337),
+    "ID": (44.240459, -114.478828),
+    "IL": (40.349457, -88.986137),
+    "IN": (39.849426, -86.258278),
+    "IA": (42.011539, -93.210526),
+    "KS": (38.526600, -96.726486),
+    "KY": (37.668140, -84.670067),
+    "LA": (31.169546, -91.867805),
+    "ME": (44.693947, -69.381927),
+    "MD": (39.063946, -76.802101),
+    "MA": (42.230171, -71.530106),
+    "MI": (43.326618, -84.536095),
+    "MN": (45.694454, -93.900192),
+    "MS": (32.741646, -89.678696),
+    "MO": (38.456085, -92.288368),
+    "MT": (46.921925, -110.454353),
+    "NE": (41.125370, -98.268082),
+    "NV": (38.313515, -117.055374),
+    "NH": (43.452492, -71.563896),
+    "NJ": (40.298904, -74.521011),
+    "NM": (34.840515, -106.248482),
+    "NY": (42.165726, -74.948051),
+    "NC": (35.630066, -79.806419),
+    "ND": (47.528912, -99.784012),
+    "OH": (40.388783, -82.764915),
+    "OK": (35.565342, -96.928917),
+    "OR": (44.572021, -122.070938),
+    "PA": (40.590752, -77.209755),
+    "RI": (41.680893, -71.511780),
+    "SC": (33.856892, -80.945007),
+    "SD": (44.299782, -99.438828),
+    "TN": (35.747845, -86.692345),
+    "TX": (31.054487, -97.563461),
+    "UT": (40.150032, -111.862434),
+    "VT": (44.045876, -72.710686),
+    "VA": (37.769337, -78.169968),
+    "WA": (47.400902, -121.490494),
+    "WV": (38.491226, -80.954453),
+    "WI": (44.268543, -89.616508),
+    "WY": (42.755966, -107.302490),
+    "DC": (38.9072, -77.0369),
+}
+
+
+def _get_city_coordinates(city: str, state: str) -> tuple:
+    """Get coordinates for a city/state combination."""
+    if not city or not state:
+        return None
+
+    city_upper = city.upper().strip()
+    state_upper = state.upper().strip()[:2]
+
+    # Direct lookup
+    key = (city_upper, state_upper)
+    if key in US_CITY_COORDINATES:
+        return US_CITY_COORDINATES[key]
+
+    # Try partial match
+    for (c, s), coords in US_CITY_COORDINATES.items():
+        if s == state_upper and city_upper in c:
+            return coords
+
+    # Fall back to state center
+    return _get_state_center_coordinates(state_upper)
+
+
+def _get_state_center_coordinates(state: str) -> tuple:
+    """Get center coordinates for a US state."""
+    if not state:
+        return None
+
+    state_upper = state.upper().strip()[:2]
+    return US_STATE_CENTERS.get(state_upper)
 
 
 def calculate_distance_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
