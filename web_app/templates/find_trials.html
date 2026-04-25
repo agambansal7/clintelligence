@@ -485,7 +485,7 @@
                         <!-- Criteria Preview -->
                         <div class="grid md:grid-cols-2 gap-4 mb-4">
                             <!-- Met Criteria -->
-                            <div x-show="match.criteria_met.length > 0">
+                            <div x-show="match.criteria_met && match.criteria_met.length > 0">
                                 <h4 class="text-sm font-semibold text-emerald-700 mb-2 flex items-center gap-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -493,18 +493,18 @@
                                     Criteria You Meet
                                 </h4>
                                 <ul class="space-y-1">
-                                    <template x-for="c in match.criteria_met.slice(0, expanded ? 100 : 3)" :key="c.criterion">
+                                    <template x-for="(c, idx) in match.criteria_met.slice(0, expanded ? 100 : 3)" :key="idx">
                                         <li class="text-sm text-slate-600 flex items-start gap-2">
-                                            <span class="text-emerald-500 mt-0.5">+</span>
-                                            <span x-text="c.explanation"></span>
+                                            <span class="text-emerald-500 mt-0.5 flex-shrink-0">✓</span>
+                                            <span x-text="typeof c === 'string' ? c : (c.explanation || c.criterion || c)"></span>
                                         </li>
                                     </template>
                                 </ul>
                             </div>
 
                             <!-- Not Met / Unknown -->
-                            <div x-show="match.criteria_not_met.length > 0 || match.criteria_unknown.length > 0">
-                                <template x-if="match.criteria_not_met.length > 0">
+                            <div x-show="(match.criteria_not_met && match.criteria_not_met.length > 0) || (match.criteria_unknown && match.criteria_unknown.length > 0)">
+                                <template x-if="match.criteria_not_met && match.criteria_not_met.length > 0">
                                     <div class="mb-3">
                                         <h4 class="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,16 +513,16 @@
                                             Potential Issues
                                         </h4>
                                         <ul class="space-y-1">
-                                            <template x-for="c in match.criteria_not_met" :key="c.criterion">
+                                            <template x-for="(c, idx) in match.criteria_not_met" :key="idx">
                                                 <li class="text-sm text-slate-600 flex items-start gap-2">
-                                                    <span class="text-red-500 mt-0.5">-</span>
-                                                    <span x-text="c.explanation"></span>
+                                                    <span class="text-red-500 mt-0.5 flex-shrink-0">✗</span>
+                                                    <span x-text="typeof c === 'string' ? c : (c.explanation || c.criterion || c)"></span>
                                                 </li>
                                             </template>
                                         </ul>
                                     </div>
                                 </template>
-                                <template x-if="match.criteria_unknown.length > 0 && expanded">
+                                <template x-if="match.criteria_unknown && match.criteria_unknown.length > 0">
                                     <div>
                                         <h4 class="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -531,10 +531,10 @@
                                             Needs Verification
                                         </h4>
                                         <ul class="space-y-1">
-                                            <template x-for="c in match.criteria_unknown" :key="c.criterion">
+                                            <template x-for="(c, idx) in match.criteria_unknown" :key="idx">
                                                 <li class="text-sm text-slate-600 flex items-start gap-2">
-                                                    <span class="text-amber-500 mt-0.5">?</span>
-                                                    <span x-text="c.explanation"></span>
+                                                    <span class="text-amber-500 mt-0.5 flex-shrink-0">?</span>
+                                                    <span x-text="typeof c === 'string' ? c : (c.explanation || c.criterion || c)"></span>
                                                 </li>
                                             </template>
                                         </ul>
