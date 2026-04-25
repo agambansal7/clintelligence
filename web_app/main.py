@@ -132,8 +132,12 @@ async def startup_event():
         from src.database import DatabaseManager
         db = DatabaseManager.get_instance()
         db.create_tables()
-        print("Database tables verified/created successfully")
+        db_type = "PostgreSQL" if "postgresql" in db.database_url else "SQLite"
+        print(f"Database tables verified/created successfully ({db_type})")
+        print(f"Database URL: {db.database_url[:50]}..." if len(db.database_url) > 50 else f"Database URL: {db.database_url}")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Warning: Could not initialize database tables: {e}")
 
 

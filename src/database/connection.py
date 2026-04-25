@@ -28,14 +28,24 @@ class DatabaseManager:
         Initialize database manager.
 
         Args:
-            database_url: SQLAlchemy database URL. Defaults to SQLite in ./data/trials.db
+            database_url: SQLAlchemy database URL. Defaults to DATABASE_URL env var or SQLite
             echo: Whether to echo SQL statements (for debugging)
         """
         if database_url is None:
-            # Default to SQLite in data directory
-            data_dir = os.environ.get("TRIALINTEL_DATA_DIR", "./data")
-            os.makedirs(data_dir, exist_ok=True)
-            database_url = f"sqlite:///{data_dir}/trials.db"
+            # Check for DATABASE_URL environment variable first (Railway, Heroku, etc.)
+            database_url = os.environ.get("DATABASE_URL")
+
+            if database_url:
+                # Railway/Heroku sometimes use postgres:// but SQLAlchemy needs postgresql://
+                if database_url.startswith("postgres://"):
+                    database_url = database_url.replace("postgres://", "postgresql://", 1)
+                logger.info(f"Using DATABASE_URL from environment")
+            else:
+                # Fall back to SQLite in data directory for local development
+                data_dir = os.environ.get("TRIALINTEL_DATA_DIR", "./data")
+                os.makedirs(data_dir, exist_ok=True)
+                database_url = f"sqlite:///{data_dir}/trials.db"
+                logger.info(f"Using SQLite database at {database_url}")
 
         self.database_url = database_url
         self.echo = echo
